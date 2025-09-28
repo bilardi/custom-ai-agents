@@ -1,0 +1,88 @@
+[project]
+name = "custom-ai-agents"
+version = "0.0.0"
+requires-python = ">=3.13"
+dependencies = [
+    "any_agent",
+    "bs4",
+    "chromadb",
+    "duckduckgo_search",
+    "faiss-cpu",
+    "fastapi",
+    "openai",
+    "pdfplumber",
+    "pydantic",
+    "requests",
+    "smolagents",
+    "uvicorn",
+]
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "pyright",
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+]
+
+# This project is an app, not a distributable package.
+[tool.uv]
+package = false
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+# ---------------------------------------------------------------------------
+# ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+exclude = [".venv"]
+fix = true
+line-length = 100
+output-format = "grouped"
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812", # missing trailing comma # conflict with formatter
+  "D203", # incorrect-blank-line-before-class
+  "D213", # multi-line-summary-second-line
+  "D413", # Missing blank line after last section ("Args", "Returns")
+  "D415", # First line should end with a period, question mark, or exclamation point
+  "EXE002", # The file is executable but no shebang is present
+  "FBT", # positional argument in function definition or call
+  "ISC001", # implicit string concatenation # conflict with formatter
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["D104"] # Missing docstring in public package
+"tests/**" = [
+  "ANN", # Missing return / type annotation for public function
+  "S101", # Use of `assert` detected
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 100
+indent-style = "space"
+line-ending = "auto"
+quote-style = "double"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+# ---------------------------------------------------------------------------
+# pyright
+# ---------------------------------------------------------------------------
+[tool.pyright]
+exclude = ["**/__pycache__"]
+include = ["app", "scripts", "tests"]
+pythonVersion = "3.13"
+reportMissingTypeStubs = false
+typeCheckingMode = "strict"

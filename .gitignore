@@ -1,0 +1,14 @@
+*#*#
+*pyc
+*~
+.env
+.pytest_cache/
+.ruff_cache/
+.venv/
+.~
+__pycache__/
+data/chroma_db/*
+!data/chroma_db/.gitkeep
+data/documents/*
+!data/documents/README.md
+tmp
