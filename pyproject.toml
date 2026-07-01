@@ -9,6 +9,7 @@ dependencies = [
     "duckduckgo_search",
     "faiss-cpu",
     "fastapi",
+    "markdownify",
     "openai",
     "pdfplumber",
     "pydantic",
@@ -65,6 +66,7 @@ ignore = [
 "tests/**" = [
   "ANN", # Missing return / type annotation for public function
   "S101", # Use of `assert` detected
+  "SLF001", # Private member accessed (tests may check internals)
 ]
 
 [tool.ruff.format]
