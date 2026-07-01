@@ -68,6 +68,7 @@ ignore = [
   "ARG", # Unused arguments in test doubles matching a signature
   "D", # Missing docstrings (tests and test doubles)
   "PLR2004", # Magic values in assertions
+  "RUF059", # Unused unpacked variable (test helpers returning tuples)
   "S101", # Use of `assert` detected
   "SLF001", # Private member accessed (tests may check internals)
 ]
