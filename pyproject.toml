@@ -37,6 +37,8 @@ package = false
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# third-party deprecation from starlette TestClient, not from this project
+filterwarnings = ["ignore:Using .httpx. with .starlette.testclient."]
 
 # ---------------------------------------------------------------------------
 # ruff
@@ -91,4 +93,6 @@ exclude = ["**/__pycache__"]
 include = ["app", "scripts", "tests"]
 pythonVersion = "3.13"
 reportMissingTypeStubs = false
+# FastAPI routes are defined inside a factory and only referenced via decorators.
+reportUnusedFunction = false
 typeCheckingMode = "strict"
