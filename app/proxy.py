@@ -1,6 +1,7 @@
 """FastAPI proxy that mimics the Ollama API, routing through an engine."""
 
 import json
+import os
 from collections.abc import Callable, Iterator
 from typing import Any
 
@@ -8,7 +9,10 @@ import requests
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
+from app.ag.chroma_db import ChromaDb
+from app.engine.deterministic import DeterministicEngine
 from app.router import Router
+from app.tools.web_browsing import WebBrowser
 
 
 def _chat_body(model: str, content: str, *, done: bool) -> dict[str, Any]:
@@ -36,7 +40,20 @@ def _routed_response(
     return StreamingResponse(stream_ndjson(), media_type="application/x-ndjson")
 
 
-def create_app(
+def make_generate(session: Any, model: str, ollama_url: str) -> Callable[[str], str]:  # noqa: ANN401
+    """Return a callable that asks Ollama /api/generate and returns the response text."""
+
+    def generate(prompt: str) -> str:
+        response = session.post(
+            f"{ollama_url}/api/generate",
+            json={"model": model, "prompt": prompt, "stream": False},
+        )
+        return response.json()["response"]
+
+    return generate
+
+
+def create_app(  # noqa: C901
     router: Router,
     session: Any = requests,  # noqa: ANN401 (injected HTTP client to Ollama)
     model: str = "qwen3",
@@ -83,4 +100,33 @@ def create_app(
     def tags() -> dict[str, Any]:
         return session.get(f"{ollama_url}/api/tags").json()
 
+    @app.post("/v1/chat/completions")
+    async def chat_completions(request: Request) -> Response:
+        return forward_post("/v1/chat/completions", await request.json())
+
+    @app.post("/v1/completions")
+    async def completions(request: Request) -> Response:
+        return forward_post("/v1/completions", await request.json())
+
+    @app.post("/v1/embeddings")
+    async def v1_embeddings(request: Request) -> Response:
+        return forward_post("/v1/embeddings", await request.json())
+
+    @app.get("/v1/models")
+    def v1_models() -> dict[str, Any]:
+        return session.get(f"{ollama_url}/v1/models").json()
+
     return app
+
+
+def build_app() -> FastAPI:
+    """Compose the proxy from environment configuration."""
+    model = os.getenv("MODEL", "qwen3")
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    mode = os.getenv("ENGINE", "deterministic")
+    ag = ChromaDb(model=model, ollama_url=f"{ollama_url}/api/embeddings")
+    web = WebBrowser()
+    generate = make_generate(requests, model, ollama_url)
+    engines = {"deterministic": DeterministicEngine(ag=ag, web=web, generate=generate)}
+    router = Router(engines=engines, mode=mode)
+    return create_app(router=router, model=model, ollama_url=ollama_url)

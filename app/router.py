@@ -1,12 +1,14 @@
 """Router: selects the message-handling engine from the ENGINE parameter."""
 
+from collections.abc import Mapping
+
 from app.engine.base import Engine
 
 
 class Router:
     """Select an engine by mode and delegate message handling to it."""
 
-    def __init__(self, engines: dict[str, Engine], mode: str) -> None:
+    def __init__(self, engines: Mapping[str, Engine], mode: str) -> None:
         """Pick the engine for the mode; fail fast if the mode is not available."""
         if mode not in engines:
             msg = f"unknown ENGINE mode: {mode!r} (available: {sorted(engines)})"
