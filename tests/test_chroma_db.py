@@ -69,7 +69,10 @@ def test_get_embedding_calls_ollama_and_returns_vector():
     """get_embedding posts the text to Ollama and returns the embedding."""
     session = _session_returning([0.1, 0.2, 0.3])
     db = ChromaDb(
-        client=FakeClient(), session=session, model="qwen3", ollama_url="http://x/api/embeddings"
+        client=FakeClient(),
+        session=session,
+        embed_model="qwen3",
+        ollama_url="http://x/api/embeddings",
     )
     assert db.get_embedding("hello") == [0.1, 0.2, 0.3]
     session.post.assert_called_once_with(

@@ -40,14 +40,19 @@ def _routed_response(
     return StreamingResponse(stream_ndjson(), media_type="application/x-ndjson")
 
 
-def make_generate(session: Any, model: str, ollama_url: str) -> Callable[[str], str]:  # noqa: ANN401
+def make_generate(
+    session: Any,  # noqa: ANN401 (injected HTTP client to Ollama)
+    model: str,
+    ollama_url: str,
+    num_ctx: int | None = None,
+) -> Callable[[str], str]:
     """Return a callable that asks Ollama /api/generate and returns the response text."""
 
     def generate(prompt: str) -> str:
-        response = session.post(
-            f"{ollama_url}/api/generate",
-            json={"model": model, "prompt": prompt, "stream": False},
-        )
+        body: dict[str, Any] = {"model": model, "prompt": prompt, "stream": False}
+        if num_ctx is not None:
+            body["options"] = {"num_ctx": num_ctx}
+        response = session.post(f"{ollama_url}/api/generate", json=body)
         return response.json()["response"]
 
     return generate
@@ -122,11 +127,15 @@ def create_app(  # noqa: C901
 def build_app() -> FastAPI:
     """Compose the proxy from environment configuration."""
     model = os.getenv("MODEL", "qwen3")
+    embed_model = os.getenv("EMBED_MODEL", "qwen3")
     ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
     mode = os.getenv("ENGINE", "deterministic")
-    ag = ChromaDb(model=model, ollama_url=f"{ollama_url}/api/embeddings")
+    top_k = int(os.getenv("TOP_K", "3"))
+    context_length = os.getenv("CONTEXT_LENGTH")
+    num_ctx = int(context_length) if context_length else None
+    ag = ChromaDb(embed_model=embed_model, ollama_url=f"{ollama_url}/api/embeddings", top_k=top_k)
     web = WebBrowser()
-    generate = make_generate(requests, model, ollama_url)
+    generate = make_generate(requests, model, ollama_url, num_ctx=num_ctx)
     engines = {"deterministic": DeterministicEngine(ag=ag, web=web, generate=generate)}
     router = Router(engines=engines, mode=mode)
     return create_app(router=router, model=model, ollama_url=ollama_url)

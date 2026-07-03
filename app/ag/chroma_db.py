@@ -22,7 +22,7 @@ class ChromaDb(Retriever):
     def __init__(  # noqa: PLR0913
         self,
         path: str = "data/chroma_db",
-        model: str = "qwen3",
+        embed_model: str = "qwen3",
         ollama_url: str = "http://localhost:11434/api/embeddings",
         max_words: int = 300,
         top_k: int = 3,
@@ -30,7 +30,7 @@ class ChromaDb(Retriever):
         session: Any = None,  # noqa: ANN401 (injected HTTP client for embeddings)
     ) -> None:
         """Build the backend with connection defaults and injectable clients."""
-        self.model = model
+        self.embed_model = embed_model
         self.ollama_url = ollama_url
         self.max_words = max_words
         self.top_k = top_k
@@ -58,7 +58,10 @@ class ChromaDb(Retriever):
 
     def get_embedding(self, text: str) -> list[float]:
         """Return the embedding of the text computed by Ollama."""
-        response = self.session.post(self.ollama_url, json={"model": self.model, "prompt": text})
+        response = self.session.post(
+            self.ollama_url,
+            json={"model": self.embed_model, "prompt": text},
+        )
         return response.json()["embedding"]
 
     def chunk_text(self, text: str, max_words: int | None = None) -> list[str]:

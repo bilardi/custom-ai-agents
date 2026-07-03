@@ -179,3 +179,13 @@ def test_make_generate_posts_prompt_and_returns_response():
         "http://ollama/api/generate",
         json={"model": "qwen3", "prompt": "hello", "stream": False},
     )
+
+
+def test_make_generate_sets_num_ctx_when_given():
+    session = MagicMock()
+    ollama_resp = MagicMock()
+    ollama_resp.json.return_value = {"response": "ANSWER"}
+    session.post.return_value = ollama_resp
+    generate = make_generate(session, "qwen3", "http://ollama", num_ctx=4096)
+    generate("hello")
+    assert session.post.call_args.kwargs["json"]["options"] == {"num_ctx": 4096}
