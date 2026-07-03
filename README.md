@@ -8,6 +8,77 @@ An app that mimics the Ollama API so it can be used from any Ollama-compatible I
 - Python 3.13
 - [uv](https://docs.astral.sh/uv/)
 
+## Usage
+
+The proxy runs in front of Ollama, so any Ollama-compatible IDE extension can talk to the proxy on the default port: keep Ollama on `11435` and the proxy on `11434`.
+
+### Ollama setup
+
+Move Ollama off the default port so the proxy can take `11434`. Edit the service:
+
+```sh
+sudo systemctl edit ollama.service
+```
+
+```
+[Service]
+Environment="OLLAMA_DEBUG=1"
+Environment="OLLAMA_ORIGINS=*"
+Environment="OLLAMA_CONTEXT_LENGTH=40000"
+Environment="OLLAMA_HOST=0.0.0.0:11435"
+```
+
+```sh
+sudo systemctl restart ollama.service
+```
+
+With a non-default host, the CLI must target it explicitly:
+
+```sh
+OLLAMA_HOST=127.0.0.1:11435 ollama ps
+```
+
+### End-to-end test
+
+| Variable | Default | Controls |
+|---|---|---|
+| `ENGINE` | `deterministic` | which engine handles messages (later `tool-agent`, `multi-agent`) |
+| `MODEL` | `qwen3` | Ollama model used for generation |
+| `EMBED_MODEL` | `qwen3` | Ollama model used for embeddings (must match the index) |
+| `OLLAMA_URL` | `http://localhost:11434` | base URL of the Ollama server |
+| `TOP_K` | `3` | number of RAG chunks retrieved per query |
+| `MAX_WORDS` | `300` | chunk size in words (indexing) |
+| `CONTEXT_LENGTH` | unset | generation context window (Ollama `num_ctx`); lower = faster |
+| `COLLECTION` | `dask` | topic to index (storage script) |
+| `DOCS_FOLDER` | `data/documents/dask` | folder to index (storage script) |
+
+Copy the template and edit your values:
+
+```sh
+cp .env.example .env
+```
+
+End-to-end test (Ollama must be running):
+
+1. index a topic:
+   ```sh
+   uv run --env-file .env python -m scripts.document_manager.storage
+   ```
+2. list the indexed topics:
+   ```sh
+   uv run --env-file .env python -m scripts.document_manager.check_chunks
+   ```
+3. run the proxy:
+   ```sh
+   uv run --env-file .env uvicorn app.proxy:build_app --factory --port 11434
+   ```
+4. query it:
+   ```sh
+   curl http://localhost:11434/api/chat -d '{"model":"qwen3","messages":[{"role":"user","content":"/dask how to parallelize a groupby"}],"stream":false}'
+   ```
+
+With the `deterministic` engine the routing only chooses the context for the model: `/tag` for a known topic pulls the local RAG chunks, a URL in the message reads that page, `/web <query>` searches the web. In all three cases the retrieved text and the question are sent to the Ollama model, which writes the answer. Anything else goes straight to the model, which answers from its own knowledge.
+
 ## Project structure
 
 ```
