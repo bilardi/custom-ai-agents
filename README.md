@@ -74,10 +74,34 @@ End-to-end test (Ollama must be running):
    ```
 4. query it:
    ```sh
+   # chat, blocking
    curl http://localhost:11434/api/chat -d '{"model":"qwen3","messages":[{"role":"user","content":"/dask how to parallelize a groupby"}],"stream":false}'
+
+   # generate, blocking
+   curl http://localhost:11434/api/generate -d '{"model":"qwen3","prompt":"/dask how to parallelize a groupby","stream":false}'
+
+   # chat, streaming (NDJSON, one token per line)
+   curl http://localhost:11434/api/chat -d '{"model":"qwen3","messages":[{"role":"user","content":"/dask how to parallelize a groupby"}],"stream":true}'
    ```
 
 With the `deterministic` engine the routing only chooses the context for the model: `/tag` for a known topic pulls the local RAG chunks, a URL in the message reads that page, `/web <query>` searches the web. In all three cases the retrieved text and the question are sent to the Ollama model, which writes the answer. Anything else goes straight to the model, which answers from its own knowledge.
+
+### OpenAI-compatible
+
+The proxy also exposes the OpenAI-compatible `/v1` endpoints, passed through to Ollama, so an OpenAI client works against it:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
+resp = client.chat.completions.create(
+    model="qwen3",
+    messages=[{"role": "user", "content": "Who wrote The Betrothed?"}],
+)
+print(resp.choices[0].message.content)
+```
+
+The `/tag` routing and RAG apply only to the Ollama-native `/api/chat` and `/api/generate`; the `/v1` endpoints are a plain pass-through for OpenAI compatibility.
 
 ## Project structure
 
