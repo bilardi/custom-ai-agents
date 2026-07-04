@@ -38,6 +38,13 @@ With a non-default host, the CLI must target it explicitly:
 OLLAMA_HOST=127.0.0.1:11435 ollama ps
 ```
 
+Pull the base model, and optionally create the `coding` model (a coding-assistant persona defined in `ollama/Modelfile`):
+
+```sh
+ollama pull qwen2.5
+ollama create coding -f ollama/Modelfile
+```
+
 ### End-to-end test
 
 | Variable | Default | Controls |
@@ -57,6 +64,8 @@ Copy the template and edit your values:
 ```sh
 cp .env.example .env
 ```
+
+To use the coding-assistant persona, set `MODEL=coding` in `.env`.
 
 End-to-end test (Ollama must be running):
 
@@ -102,6 +111,25 @@ print(resp.choices[0].message.content)
 ```
 
 The `/tag` routing and RAG apply only to the Ollama-native `/api/chat` and `/api/generate`; the `/v1` endpoints are a plain pass-through for OpenAI compatibility.
+
+### Continue (VS Code) setup
+
+The [Continue](https://www.continue.dev/) extension speaks the Ollama-native API, so pointing it at the proxy (port `11434`, the Ollama default `apiBase`) lets it inherit the `/tag` routing and RAG. Add the model to `~/.continue/config.json`:
+
+```json
+{
+  "models": [
+    {
+      "title": "Coding",
+      "model": "coding",
+      "provider": "ollama",
+      "apiBase": "http://localhost:11434"
+    }
+  ]
+}
+```
+
+With the proxy running, select `Coding` in the Continue chat and prefix a message with a known `/tag` to pull the local RAG chunks.
 
 ## Project structure
 
