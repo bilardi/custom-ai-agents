@@ -20,6 +20,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "bump-my-version",
+    "git-cliff",
     "httpx",
     "pyright",
     "pytest",
@@ -30,6 +32,94 @@ dev = [
 # This project is an app, not a distributable package.
 [tool.uv]
 package = false
+
+# ---------------------------------------------------------------------------
+# bumpversion
+# ---------------------------------------------------------------------------
+[tool.bumpversion]
+current_version = "0.0.0"
+commit = true
+tag = true
+tag_name = "v{new_version}"
+message = "build: release {new_version}"
+tag_message = "custom-ai-agents {new_version}"
+
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
+# ---------------------------------------------------------------------------
+# git-cliff
+# ---------------------------------------------------------------------------
+[tool.git-cliff.remote.github]
+owner = "bilardi"
+repo = "custom-ai-agents"
+
+[tool.git-cliff.changelog]
+header = "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\nThe format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n"
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## [Unreleased]
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}\
+### {{ group }}
+{% for commit in commits %}\
+- {{ commit.message | upper_first }}
+{% endfor %}
+{% endfor %}\
+"""
+footer = """
+{% for release in releases %}\
+{% if release.version %}\
+{% if release.previous is defined and release.previous.version is defined %}\
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}/compare/{{ release.previous.version }}...{{ release.version }}
+{% else %}\
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}/releases/tag/{{ release.version }}
+{% endif %}\
+{% else %}\
+{% if release.previous is defined and release.previous.version is defined %}\
+[Unreleased]: https://github.com/{{ remote.github.owner }}/{{ remote.github.repo }}/compare/{{ release.previous.version }}...HEAD
+{% endif %}\
+{% endif %}\
+{% endfor %}
+"""
+trim = true
+render_always = false
+skip_if_empty = true
+
+[tool.git-cliff.git]
+conventional_commits = true
+filter_unconventional = true
+tag_pattern = "v[0-9].*"
+sort_commits = "oldest"
+split_commits = false
+
+[[tool.git-cliff.git.commit_parsers]]
+message = "^feat"
+group = "Features"
+
+[[tool.git-cliff.git.commit_parsers]]
+message = "^fix"
+group = "Bug Fixes"
+
+[[tool.git-cliff.git.commit_parsers]]
+message = "^refactor|^perf"
+group = "Performance"
+
+[[tool.git-cliff.git.commit_parsers]]
+message = "^docs"
+group = "Documentation"
+
+[[tool.git-cliff.git.commit_parsers]]
+message = "^test"
+group = "Test"
+
+[[tool.git-cliff.git.commit_parsers]]
+message = "^chore"
+group = "Chores"
 
 # ---------------------------------------------------------------------------
 # pytest
