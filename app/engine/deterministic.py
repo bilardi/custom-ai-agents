@@ -1,7 +1,7 @@
 """Deterministic engine: fixed rules, no LLM decides which action to take."""
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 
 from app.ag.base import Retriever
 from app.engine.base import Engine
@@ -32,14 +32,19 @@ def _prompt(context: str, question: str) -> str:
 class DeterministicEngine(Engine):
     """Fixed rules: /tag -> RAG, /web -> search, url -> visit, else pass-through."""
 
-    def __init__(self, ag: Retriever, web: WebBrowser, generate: Callable[[str], str]) -> None:
+    def __init__(
+        self,
+        ag: Retriever,
+        web: WebBrowser,
+        generate: Callable[[str], Iterator[str]],
+    ) -> None:
         """Build the engine with injected knowledge, web and model-call collaborators."""
         self._ag = ag
         self._web = web
         self._generate = generate
 
-    def handle(self, message: str) -> str | None:
-        """Apply the deterministic rules and return the answer, or None to pass through."""
+    def handle(self, message: str) -> Iterator[str] | None:
+        """Apply the deterministic rules and return a token stream, or None to pass through."""
         tag = _extract_tag(message)
         if tag == "web":
             query = self._strip_tag(message, tag)

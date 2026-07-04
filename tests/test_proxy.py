@@ -16,7 +16,7 @@ def _client(router, session=None):
 
 def test_chat_returns_routed_answer_without_calling_ollama():
     router = MagicMock()
-    router.handle.return_value = "ROUTED"
+    router.handle.return_value = ["ROUTED"]
     client, session = _client(router)
     resp = client.post(
         "/api/chat",
@@ -28,6 +28,17 @@ def test_chat_returns_routed_answer_without_calling_ollama():
     assert body["done"] is True
     router.handle.assert_called_once_with("/dask x")
     session.post.assert_not_called()
+
+
+def test_chat_joins_streamed_tokens_without_extra_spaces():
+    router = MagicMock()
+    router.handle.return_value = ["The", " good", " answer"]
+    client, _ = _client(router)
+    resp = client.post(
+        "/api/chat",
+        json={"messages": [{"role": "user", "content": "/dask x"}], "stream": False},
+    )
+    assert resp.json()["message"]["content"] == "The good answer"
 
 
 def test_chat_passes_through_to_ollama_when_not_routed():
@@ -50,7 +61,7 @@ def test_chat_passes_through_to_ollama_when_not_routed():
 
 def test_chat_streaming_returns_ndjson_lines():
     router = MagicMock()
-    router.handle.return_value = "ROUTED"
+    router.handle.return_value = ["ROUTED"]
     client, _ = _client(router)
     resp = client.post(
         "/api/chat",
@@ -66,7 +77,7 @@ def test_chat_streaming_returns_ndjson_lines():
 
 def test_generate_returns_routed_answer():
     router = MagicMock()
-    router.handle.return_value = "ROUTED"
+    router.handle.return_value = ["ROUTED"]
     client, session = _client(router)
     resp = client.post("/api/generate", json={"prompt": "/web news", "stream": False})
     assert resp.json()["response"] == "ROUTED"
@@ -168,24 +179,29 @@ def test_v1_models_forwards_to_ollama():
     assert session.get.call_args[0][0] == "http://ollama/v1/models"
 
 
-def test_make_generate_posts_prompt_and_returns_response():
+def _stream_response(lines):
+    response = MagicMock()
+    response.iter_lines.return_value = lines
+    return response
+
+
+def test_make_generate_streams_tokens():
     session = MagicMock()
-    ollama_resp = MagicMock()
-    ollama_resp.json.return_value = {"response": "ANSWER"}
-    session.post.return_value = ollama_resp
-    generate = make_generate(session, "qwen3", "http://ollama")
-    assert generate("hello") == "ANSWER"
-    session.post.assert_called_once_with(
-        "http://ollama/api/generate",
-        json={"model": "qwen3", "prompt": "hello", "stream": False},
+    session.post.return_value = _stream_response(
+        [
+            b'{"response":"Hel","done":false}',
+            b'{"response":"lo","done":false}',
+            b'{"response":"","done":true}',
+        ],
     )
+    generate = make_generate(session, "qwen3", "http://ollama")
+    assert list(generate("hello")) == ["Hel", "lo"]
+    assert session.post.call_args.kwargs["json"]["stream"] is True
 
 
 def test_make_generate_sets_num_ctx_when_given():
     session = MagicMock()
-    ollama_resp = MagicMock()
-    ollama_resp.json.return_value = {"response": "ANSWER"}
-    session.post.return_value = ollama_resp
+    session.post.return_value = _stream_response([b'{"response":"a","done":true}'])
     generate = make_generate(session, "qwen3", "http://ollama", num_ctx=4096)
-    generate("hello")
+    list(generate("hello"))
     assert session.post.call_args.kwargs["json"]["options"] == {"num_ctx": 4096}

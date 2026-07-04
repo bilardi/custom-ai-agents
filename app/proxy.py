@@ -25,16 +25,17 @@ def _generate_body(model: str, content: str, *, done: bool) -> dict[str, Any]:
 
 def _routed_response(
     model: str,
-    answer: str,
+    tokens: Iterator[str],
     builder: Callable[..., dict[str, Any]],
     *,
     stream: bool,
 ) -> Response:
     if not stream:
-        return JSONResponse(builder(model, answer, done=True))
+        return JSONResponse(builder(model, "".join(tokens), done=True))
 
     def stream_ndjson() -> Iterator[str]:
-        yield json.dumps(builder(model, answer, done=False)) + "\n"
+        for token in tokens:
+            yield json.dumps(builder(model, token, done=False)) + "\n"
         yield json.dumps(builder(model, "", done=True)) + "\n"
 
     return StreamingResponse(stream_ndjson(), media_type="application/x-ndjson")
@@ -45,15 +46,19 @@ def make_generate(
     model: str,
     ollama_url: str,
     num_ctx: int | None = None,
-) -> Callable[[str], str]:
-    """Return a callable that asks Ollama /api/generate and returns the response text."""
+) -> Callable[[str], Iterator[str]]:
+    """Return a callable that streams the Ollama /api/generate response token by token."""
 
-    def generate(prompt: str) -> str:
-        body: dict[str, Any] = {"model": model, "prompt": prompt, "stream": False}
+    def generate(prompt: str) -> Iterator[str]:
+        body: dict[str, Any] = {"model": model, "prompt": prompt, "stream": True}
         if num_ctx is not None:
             body["options"] = {"num_ctx": num_ctx}
-        response = session.post(f"{ollama_url}/api/generate", json=body)
-        return response.json()["response"]
+        response = session.post(f"{ollama_url}/api/generate", json=body, stream=True)
+        for line in response.iter_lines():
+            if line:
+                token = json.loads(line).get("response", "")
+                if token:
+                    yield token
 
     return generate
 
