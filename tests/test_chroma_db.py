@@ -45,6 +45,9 @@ class FakeClient:
             self._collections[name] = FakeCollection(name)
         return self._collections[name]
 
+    def delete_collection(self, name: str) -> None:
+        self._collections.pop(name, None)
+
 
 def _session_returning(embedding: list[float]) -> MagicMock:
     session = MagicMock()
@@ -63,6 +66,33 @@ def test_chunk_text_splits_by_max_words():
     """Text is split into chunks of at most max_words words."""
     db = ChromaDb(client=FakeClient(), max_words=2)
     assert db.chunk_text("a b c d e") == ["a b", "c d", "e"]
+
+
+def test_reset_collection_deletes_existing_topic():
+    """reset_collection removes the topic so it can be rebuilt from scratch."""
+    client = FakeClient({"dask": FakeCollection("dask", count=3)})
+    db = ChromaDb(client=client)
+    db.reset_collection("dask")
+    assert db.list_topics() == []
+
+
+def test_reset_collection_is_noop_when_topic_absent():
+    """reset_collection does nothing if the topic does not exist."""
+    db = ChromaDb(client=FakeClient())
+    db.reset_collection("dask")
+
+
+def test_chunk_text_overlaps_consecutive_chunks():
+    """With overlap, consecutive chunks share overlap words (stride = max_words - overlap)."""
+    db = ChromaDb(client=FakeClient(), max_words=3, overlap=1)
+    assert db.chunk_text("a b c d e") == ["a b c", "c d e"]
+
+
+def test_chunk_text_overlap_keeps_a_split_phrase_in_a_middle_chunk():
+    """A phrase split across a boundary appears whole in an overlapping middle chunk."""
+    db = ChromaDb(client=FakeClient(), max_words=4, overlap=2)
+    chunks = db.chunk_text("one two three four five six")
+    assert any("three four five" in c for c in chunks)
 
 
 def test_get_embedding_calls_ollama_and_returns_vector():

@@ -154,7 +154,7 @@ def create_app(  # noqa: C901
 def build_app() -> FastAPI:
     """Compose the proxy from environment configuration."""
     model = os.getenv("MODEL", "qwen3")
-    embed_model = os.getenv("EMBED_MODEL", "qwen3")
+    embed_model = os.getenv("EMBED_MODEL", "nomic-embed-text")
     ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
     mode = os.getenv("ENGINE", "deterministic")
     top_k = int(os.getenv("TOP_K", "3"))

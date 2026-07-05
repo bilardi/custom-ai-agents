@@ -52,13 +52,15 @@ ollama create coding -f modelfiles/Modelfile
 | `ENGINE` | `deterministic` | which engine handles messages: `deterministic`, `tool-agent` (`multi-agent` later) |
 | `SHOW_TOOL_TRACE` | unset | `tool-agent` only: stream a progress line per tool call to the IDE (e.g. `> reading local docs on 'dask'...`) |
 | `MODEL` | `qwen3` | Ollama model used for generation |
-| `EMBED_MODEL` | `qwen3` | Ollama model used for embeddings (must match the index) |
+| `EMBED_MODEL` | `nomic-embed-text` | Ollama model used for embeddings; a dedicated retrieval model beats a general LLM and must match the index |
 | `OLLAMA_URL` | `http://localhost:11434` | base URL of the Ollama server |
-| `TOP_K` | `3` | number of RAG chunks retrieved per query |
-| `MAX_WORDS` | `300` | chunk size in words (indexing) |
+| `TOP_K` | `3` | number of RAG chunks retrieved per query; raise it to reach thinly documented topics |
+| `MAX_WORDS` | `500` | chunk size in words (indexing); larger chunks keep an articulated topic whole and rank better |
+| `OVERLAP` | `0` | chunk overlap in words (indexing); helps only when chunks are small enough to split a topic |
 | `CONTEXT_LENGTH` | unset | generation context window (Ollama `num_ctx`); lower = faster |
 | `COLLECTION` | `dask` | topic to index (storage script) |
 | `DOCS_FOLDER` | `data/documents/dask` | folder to index (storage script) |
+| `RESET` | `false` | storage script: `true` wipes the collection before indexing (re-index from scratch), otherwise it appends |
 
 Copy the template and edit your values:
 
@@ -70,7 +72,7 @@ To use the coding-assistant persona, set `MODEL=coding` in `.env`.
 
 End-to-end test (Ollama must be running):
 
-1. index a topic:
+1. index a topic (set `RESET=true` in `.env` to rebuild from scratch, e.g. after changing `EMBED_MODEL`, `MAX_WORDS` or `OVERLAP`; the embedding model must match between indexing and querying):
    ```sh
    uv run --env-file .env python -m scripts.document_manager.storage
    ```

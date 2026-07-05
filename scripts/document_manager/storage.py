@@ -19,16 +19,22 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s", force=True)
     collection = os.environ.get("COLLECTION", "dask")
     docs_folder = os.environ.get("DOCS_FOLDER", "data/documents/dask")
-    embed_model = os.environ.get("EMBED_MODEL", "qwen3")
+    embed_model = os.environ.get("EMBED_MODEL", "nomic-embed-text")
     ollama_url = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-    max_words = int(os.environ.get("MAX_WORDS", "300"))
+    max_words = int(os.environ.get("MAX_WORDS", "500"))
+    overlap = int(os.environ.get("OVERLAP", "0"))
+    reset = os.environ.get("RESET", "").lower() in {"1", "true", "yes"}
 
     start = time.time()
     db = ChromaDb(
         embed_model=embed_model,
         ollama_url=f"{ollama_url}/api/embeddings",
         max_words=max_words,
+        overlap=overlap,
     )
+    if reset:
+        db.reset_collection(collection)
+        logger.info("reset collection %s before indexing", collection)
     chunks = db.index_folder(docs_folder, collection)
     logger.info("indexed %s chunks into %s in %.1fs", chunks, collection, time.time() - start)
 

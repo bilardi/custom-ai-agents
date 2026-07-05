@@ -25,7 +25,7 @@ def _app(engine, *, show_trace=False):
     os.environ["ENGINE"] = engine
     os.environ["OLLAMA_URL"] = OLLAMA_URL
     os.environ["MODEL"] = os.environ.get("MODEL", "qwen2.5")
-    os.environ["EMBED_MODEL"] = os.environ.get("EMBED_MODEL", "qwen3")
+    os.environ["EMBED_MODEL"] = os.environ.get("EMBED_MODEL", "nomic-embed-text")
     os.environ["CONTEXT_LENGTH"] = os.environ.get("CONTEXT_LENGTH", "4096")
     os.environ["SHOW_TOOL_TRACE"] = "true" if show_trace else "false"
     return build_app()

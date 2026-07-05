@@ -22,9 +22,10 @@ class ChromaDb(Retriever):
     def __init__(  # noqa: PLR0913
         self,
         path: str = "data/chroma_db",
-        embed_model: str = "qwen3",
+        embed_model: str = "nomic-embed-text",
         ollama_url: str = "http://localhost:11434/api/embeddings",
-        max_words: int = 300,
+        max_words: int = 500,
+        overlap: int = 0,
         top_k: int = 3,
         client: Any = None,  # noqa: ANN401 (injected chromadb client or a test double)
         session: Any = None,  # noqa: ANN401 (injected HTTP client for embeddings)
@@ -33,6 +34,7 @@ class ChromaDb(Retriever):
         self.embed_model = embed_model
         self.ollama_url = ollama_url
         self.max_words = max_words
+        self.overlap = overlap
         self.top_k = top_k
         self.client = client or chromadb.PersistentClient(
             path=path,
@@ -48,6 +50,11 @@ class ChromaDb(Retriever):
 
         """
         return [c.name for c in self.client.list_collections() if c.count() > 0]
+
+    def reset_collection(self, topic: str) -> None:
+        """Delete the topic collection if present, so it can be re-indexed from scratch."""
+        if topic in [c.name for c in self.client.list_collections()]:
+            self.client.delete_collection(topic)
 
     def retrieve(self, topic: str, query: str) -> list[str]:
         """Retrieve the chunks of a topic most relevant to the query.
@@ -78,11 +85,22 @@ class ChromaDb(Retriever):
         )
         return response.json()["embedding"]
 
-    def chunk_text(self, text: str, max_words: int | None = None) -> list[str]:
-        """Split the text into chunks of at most max_words words."""
+    def chunk_text(
+        self, text: str, max_words: int | None = None, overlap: int | None = None
+    ) -> list[str]:
+        """Split the text into chunks of at most max_words words, overlapping by overlap words."""
         max_words = max_words or self.max_words
+        overlap = self.overlap if overlap is None else overlap
         words = text.split()
-        return [" ".join(words[i : i + max_words]) for i in range(0, len(words), max_words)]
+        stride = max(1, max_words - overlap)
+        chunks: list[str] = []
+        i = 0
+        while i < len(words):
+            chunks.append(" ".join(words[i : i + max_words]))
+            if i + max_words >= len(words):
+                break
+            i += stride
+        return chunks
 
     def add(self, topic: str, filename: str, text: str) -> int:
         """Index the text of a file into a topic and return the chunk count."""
