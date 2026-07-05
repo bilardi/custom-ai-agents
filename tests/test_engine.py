@@ -16,9 +16,9 @@ def _engine(topics=None, search="web results", page="page text", chunks=None):
     return DeterministicEngine(ag=ag, web=web, generate=generate), ag, web, generate
 
 
-def test_handle_uses_rag_when_tag_is_a_topic():
+async def test_handle_uses_rag_when_tag_is_a_topic():
     engine, ag, web, generate = _engine(topics=["dask"], chunks=["chunk one", "chunk two"])
-    result = engine.handle("/dask how to parallelize a groupby")
+    result = await engine.handle("/dask how to parallelize a groupby")
     assert "".join(result) == "ANSWER"
     ag.retrieve.assert_called_once()
     prompt = generate.call_args[0][0]
@@ -27,9 +27,9 @@ def test_handle_uses_rag_when_tag_is_a_topic():
     web.search_web.assert_not_called()
 
 
-def test_handle_searches_web_on_web_tag():
+async def test_handle_searches_web_on_web_tag():
     engine, ag, web, generate = _engine(topics=["dask"], search="SEARCH RESULTS")
-    result = engine.handle("/web latest python release")
+    result = await engine.handle("/web latest python release")
     assert "".join(result) == "ANSWER"
     web.search_web.assert_called_once()
     query = web.search_web.call_args[0][0]
@@ -37,27 +37,27 @@ def test_handle_searches_web_on_web_tag():
     assert "SEARCH RESULTS" in generate.call_args[0][0]
 
 
-def test_handle_visits_url_when_message_has_url():
+async def test_handle_visits_url_when_message_has_url():
     engine, ag, web, generate = _engine(page="PAGE TEXT")
-    result = engine.handle("summarize https://example.com/post")
+    result = await engine.handle("summarize https://example.com/post")
     assert "".join(result) == "ANSWER"
     web.visit_webpage.assert_called_once_with("https://example.com/post")
     assert "PAGE TEXT" in generate.call_args[0][0]
 
 
-def test_handle_streams_all_tokens_in_order():
+async def test_handle_streams_all_tokens_in_order():
     engine, _ag, _web, generate = _engine(topics=["dask"], chunks=["c"])
     generate.return_value = ["THE", " GOOD", " ANSWER"]
-    assert list(engine.handle("/dask x")) == ["THE", " GOOD", " ANSWER"]
+    assert list(await engine.handle("/dask x")) == ["THE", " GOOD", " ANSWER"]
 
 
-def test_handle_passes_through_plain_message():
+async def test_handle_passes_through_plain_message():
     engine, ag, web, generate = _engine(topics=["dask"])
-    assert engine.handle("who wrote The Betrothed?") is None
+    assert await engine.handle("who wrote The Betrothed?") is None
     generate.assert_not_called()
 
 
-def test_handle_passes_through_unknown_tag():
+async def test_handle_passes_through_unknown_tag():
     engine, ag, web, generate = _engine(topics=["dask"])
-    assert engine.handle("/pandas give me a snippet") is None
+    assert await engine.handle("/pandas give me a snippet") is None
     generate.assert_not_called()

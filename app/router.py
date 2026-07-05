@@ -15,6 +15,6 @@ class Router:
             raise ValueError(msg)
         self._engine = engines[mode]
 
-    def handle(self, message: str) -> Iterator[str] | None:
+    async def handle(self, message: str) -> Iterator[str] | None:
         """Delegate to the selected engine."""
-        return self._engine.handle(message)
+        return await self._engine.handle(message)

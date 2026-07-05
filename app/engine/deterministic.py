@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterator
 
 from app.ag.base import Retriever
 from app.engine.base import Engine
+from app.prompts import load_prompt
 from app.tools.web_browsing import WebBrowser
 
 _TAG = re.compile(r"(?:^|\s)/([A-Za-z0-9_]+)")
@@ -22,11 +23,8 @@ def _extract_url(text: str) -> str | None:
 
 
 def _prompt(context: str, question: str) -> str:
-    return (
-        "Use only the following information to answer the question:\n"
-        f"{context}\n"
-        f"Question: {question}"
-    )
+    template = load_prompt("deterministic_rag")
+    return template.replace("{context}", context).replace("{question}", question)
 
 
 class DeterministicEngine(Engine):
@@ -43,7 +41,7 @@ class DeterministicEngine(Engine):
         self._web = web
         self._generate = generate
 
-    def handle(self, message: str) -> Iterator[str] | None:
+    async def handle(self, message: str) -> Iterator[str] | None:
         """Apply the deterministic rules and return a token stream, or None to pass through."""
         tag = _extract_tag(message)
         if tag == "web":

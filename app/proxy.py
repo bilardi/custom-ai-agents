@@ -3,16 +3,22 @@
 import json
 import os
 from collections.abc import Callable, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
+from any_agent import AgentConfig, AnyAgent
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.ag.chroma_db import ChromaDb
 from app.engine.deterministic import DeterministicEngine
+from app.engine.tool_agent import ToolAgentEngine
+from app.prompts import load_prompt
 from app.router import Router
 from app.tools.web_browsing import WebBrowser
+
+if TYPE_CHECKING:
+    from app.engine.base import Engine
 
 
 def _chat_body(model: str, content: str, *, done: bool) -> dict[str, Any]:
@@ -85,7 +91,7 @@ def create_app(  # noqa: C901
         body = await request.json()
         messages = body.get("messages", [])
         last_message = messages[-1]["content"] if messages else ""
-        answer = router.handle(last_message)
+        answer = await router.handle(last_message)
         if answer is not None:
             return _routed_response(model, answer, _chat_body, stream=body.get("stream", True))
         return forward_post("/api/chat", body)
@@ -93,7 +99,7 @@ def create_app(  # noqa: C901
     @app.post("/api/generate")
     async def generate(request: Request) -> Response:
         body = await request.json()
-        answer = router.handle(body.get("prompt", ""))
+        answer = await router.handle(body.get("prompt", ""))
         if answer is not None:
             return _routed_response(model, answer, _generate_body, stream=body.get("stream", True))
         return forward_post("/api/generate", body)
@@ -140,7 +146,25 @@ def build_app() -> FastAPI:
     num_ctx = int(context_length) if context_length else None
     ag = ChromaDb(embed_model=embed_model, ollama_url=f"{ollama_url}/api/embeddings", top_k=top_k)
     web = WebBrowser()
-    generate = make_generate(requests, model, ollama_url, num_ctx=num_ctx)
-    engines = {"deterministic": DeterministicEngine(ag=ag, web=web, generate=generate)}
+
+    engines: dict[str, Engine] = {}
+    if mode == "deterministic":
+        generate = make_generate(requests, model, ollama_url, num_ctx=num_ctx)
+        engines["deterministic"] = DeterministicEngine(ag=ag, web=web, generate=generate)
+    elif mode == "tool-agent":
+
+        async def make_agent() -> AnyAgent:
+            return await AnyAgent.create_async(
+                "tinyagent",
+                AgentConfig(
+                    model_id=f"ollama:{model}",
+                    api_base=ollama_url,
+                    instructions=load_prompt("tool_agent"),
+                    tools=[ag.list_topics, ag.retrieve, web.search_web, web.visit_webpage],
+                ),
+            )
+
+        engines["tool-agent"] = ToolAgentEngine(agent_factory=make_agent)
+
     router = Router(engines=engines, mode=mode)
     return create_app(router=router, model=model, ollama_url=ollama_url)

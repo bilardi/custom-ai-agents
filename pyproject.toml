@@ -10,6 +10,7 @@ dependencies = [
     "faiss-cpu",
     "fastapi",
     "markdownify",
+    "ollama",
     "openai",
     "pdfplumber",
     "pydantic",
@@ -127,6 +128,8 @@ group = "Chores"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = ["integration: needs a running Ollama (opt-in, deselected by default)"]
+addopts = ["-m", "not integration"]
 # third-party deprecation from starlette TestClient, not from this project
 filterwarnings = ["ignore:Using .httpx. with .starlette.testclient."]
 
@@ -180,7 +183,8 @@ max-complexity = 10
 # ---------------------------------------------------------------------------
 [tool.pyright]
 exclude = ["**/__pycache__"]
-include = ["app", "scripts", "tests"]
+# tests are mock-heavy; type-checked loosely, covered by ruff and by running them
+include = ["app", "scripts"]
 pythonVersion = "3.13"
 reportMissingTypeStubs = false
 # FastAPI routes are defined inside a factory and only referenced via decorators.

@@ -1,7 +1,7 @@
 """Test the FastAPI proxy that mimics the Ollama API."""
 
 import json
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 
@@ -16,7 +16,7 @@ def _client(router, session=None):
 
 def test_chat_returns_routed_answer_without_calling_ollama():
     router = MagicMock()
-    router.handle.return_value = ["ROUTED"]
+    router.handle = AsyncMock(return_value=["ROUTED"])
     client, session = _client(router)
     resp = client.post(
         "/api/chat",
@@ -32,7 +32,7 @@ def test_chat_returns_routed_answer_without_calling_ollama():
 
 def test_chat_joins_streamed_tokens_without_extra_spaces():
     router = MagicMock()
-    router.handle.return_value = ["The", " good", " answer"]
+    router.handle = AsyncMock(return_value=["The", " good", " answer"])
     client, _ = _client(router)
     resp = client.post(
         "/api/chat",
@@ -43,7 +43,7 @@ def test_chat_joins_streamed_tokens_without_extra_spaces():
 
 def test_chat_passes_through_to_ollama_when_not_routed():
     router = MagicMock()
-    router.handle.return_value = None
+    router.handle = AsyncMock(return_value=None)
     session = MagicMock()
     ollama_resp = MagicMock()
     ollama_resp.content = b'{"message":{"content":"from ollama"}}'
@@ -61,7 +61,7 @@ def test_chat_passes_through_to_ollama_when_not_routed():
 
 def test_chat_streaming_returns_ndjson_lines():
     router = MagicMock()
-    router.handle.return_value = ["ROUTED"]
+    router.handle = AsyncMock(return_value=["ROUTED"])
     client, _ = _client(router)
     resp = client.post(
         "/api/chat",
@@ -77,7 +77,7 @@ def test_chat_streaming_returns_ndjson_lines():
 
 def test_generate_returns_routed_answer():
     router = MagicMock()
-    router.handle.return_value = ["ROUTED"]
+    router.handle = AsyncMock(return_value=["ROUTED"])
     client, session = _client(router)
     resp = client.post("/api/generate", json={"prompt": "/web news", "stream": False})
     assert resp.json()["response"] == "ROUTED"
@@ -87,7 +87,7 @@ def test_generate_returns_routed_answer():
 
 def test_generate_passes_through_when_not_routed():
     router = MagicMock()
-    router.handle.return_value = None
+    router.handle = AsyncMock(return_value=None)
     session = MagicMock()
     ollama_resp = MagicMock()
     ollama_resp.content = b'{"response":"ollama"}'

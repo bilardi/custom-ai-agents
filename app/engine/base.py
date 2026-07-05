@@ -8,5 +8,5 @@ class Engine(ABC):
     """Strategy that turns an incoming message into a token stream or a pass-through."""
 
     @abstractmethod
-    def handle(self, message: str) -> Iterator[str] | None:
+    async def handle(self, message: str) -> Iterator[str] | None:
         """Return the answer as a token stream, or None to pass through to Ollama."""

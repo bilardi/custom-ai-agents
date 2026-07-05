@@ -41,11 +41,25 @@ class ChromaDb(Retriever):
         self.session = session or requests
 
     def list_topics(self) -> list[str]:
-        """Return the names of the collections that hold documents."""
+        """List the available local documentation topics.
+
+        Returns:
+            The topics that have indexed documents, as a list of strings.
+
+        """
         return [c.name for c in self.client.list_collections() if c.count() > 0]
 
     def retrieve(self, topic: str, query: str) -> list[str]:
-        """Return the top chunks of a topic relevant to the query."""
+        """Retrieve the chunks of a topic most relevant to the query.
+
+        Args:
+            topic: The local documentation topic to search in.
+            query: The user question to find relevant chunks for.
+
+        Returns:
+            The most relevant chunks as a list of strings.
+
+        """
         collection = self.client.get_collection(topic)
         embedding = self.get_embedding(query)
         result = collection.query(
