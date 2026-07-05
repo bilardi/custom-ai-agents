@@ -1,6 +1,6 @@
 """Router: selects the message-handling engine from the ENGINE parameter."""
 
-from collections.abc import Iterator, Mapping
+from collections.abc import AsyncIterator, Iterator, Mapping
 
 from app.engine.base import Engine
 
@@ -15,6 +15,6 @@ class Router:
             raise ValueError(msg)
         self._engine = engines[mode]
 
-    async def handle(self, message: str) -> Iterator[str] | None:
+    async def handle(self, message: str) -> AsyncIterator[str] | Iterator[str] | None:
         """Delegate to the selected engine."""
         return await self._engine.handle(message)

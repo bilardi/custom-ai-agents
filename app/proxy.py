@@ -2,17 +2,18 @@
 
 import json
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from typing import TYPE_CHECKING, Any
 
 import requests
 from any_agent import AgentConfig, AnyAgent
+from any_agent.callbacks import get_default_callbacks
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.ag.chroma_db import ChromaDb
 from app.engine.deterministic import DeterministicEngine
-from app.engine.tool_agent import ToolAgentEngine
+from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback
 from app.prompts import load_prompt
 from app.router import Router
 from app.tools.web_browsing import WebBrowser
@@ -29,18 +30,29 @@ def _generate_body(model: str, content: str, *, done: bool) -> dict[str, Any]:
     return {"model": model, "response": content, "done": done}
 
 
-def _routed_response(
+async def _to_async(tokens: AsyncIterator[str] | Iterator[str]) -> AsyncIterator[str]:
+    """Normalize a sync or async token stream into an async iterator."""
+    if isinstance(tokens, AsyncIterator):
+        async for token in tokens:
+            yield token
+    else:
+        for token in tokens:
+            yield token
+
+
+async def _routed_response(
     model: str,
-    tokens: Iterator[str],
+    tokens: AsyncIterator[str] | Iterator[str],
     builder: Callable[..., dict[str, Any]],
     *,
     stream: bool,
 ) -> Response:
     if not stream:
-        return JSONResponse(builder(model, "".join(tokens), done=True))
+        content = "".join([token async for token in _to_async(tokens)])
+        return JSONResponse(builder(model, content, done=True))
 
-    def stream_ndjson() -> Iterator[str]:
-        for token in tokens:
+    async def stream_ndjson() -> AsyncIterator[str]:
+        async for token in _to_async(tokens):
             yield json.dumps(builder(model, token, done=False)) + "\n"
         yield json.dumps(builder(model, "", done=True)) + "\n"
 
@@ -93,7 +105,9 @@ def create_app(  # noqa: C901
         last_message = messages[-1]["content"] if messages else ""
         answer = await router.handle(last_message)
         if answer is not None:
-            return _routed_response(model, answer, _chat_body, stream=body.get("stream", True))
+            return await _routed_response(
+                model, answer, _chat_body, stream=body.get("stream", True)
+            )
         return forward_post("/api/chat", body)
 
     @app.post("/api/generate")
@@ -101,7 +115,9 @@ def create_app(  # noqa: C901
         body = await request.json()
         answer = await router.handle(body.get("prompt", ""))
         if answer is not None:
-            return _routed_response(model, answer, _generate_body, stream=body.get("stream", True))
+            return await _routed_response(
+                model, answer, _generate_body, stream=body.get("stream", True)
+            )
         return forward_post("/api/generate", body)
 
     @app.post("/api/embeddings")
@@ -152,6 +168,7 @@ def build_app() -> FastAPI:
         generate = make_generate(requests, model, ollama_url, num_ctx=num_ctx)
         engines["deterministic"] = DeterministicEngine(ag=ag, web=web, generate=generate)
     elif mode == "tool-agent":
+        show_trace = os.getenv("SHOW_TOOL_TRACE", "").lower() in {"1", "true", "yes"}
 
         async def make_agent() -> AnyAgent:
             return await AnyAgent.create_async(
@@ -161,10 +178,11 @@ def build_app() -> FastAPI:
                     api_base=ollama_url,
                     instructions=load_prompt("tool_agent"),
                     tools=[ag.list_topics, ag.retrieve, web.search_web, web.visit_webpage],
+                    callbacks=[*get_default_callbacks(), ToolTraceCallback()],
                 ),
             )
 
-        engines["tool-agent"] = ToolAgentEngine(agent_factory=make_agent)
+        engines["tool-agent"] = ToolAgentEngine(agent_factory=make_agent, show_trace=show_trace)
 
     router = Router(engines=engines, mode=mode)
     return create_app(router=router, model=model, ollama_url=ollama_url)

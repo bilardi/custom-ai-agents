@@ -38,18 +38,19 @@ With a non-default host, the CLI must target it explicitly:
 OLLAMA_HOST=127.0.0.1:11435 ollama ps
 ```
 
-Pull the base model, and optionally create the `coding` model (a coding-assistant persona defined in `ollama/Modelfile`):
+Pull the base model, and optionally create the `coding` model (a coding-assistant persona defined in `modelfiles/Modelfile`):
 
 ```sh
 ollama pull qwen2.5
-ollama create coding -f ollama/Modelfile
+ollama create coding -f modelfiles/Modelfile
 ```
 
 ### End-to-end test
 
 | Variable | Default | Controls |
 |---|---|---|
-| `ENGINE` | `deterministic` | which engine handles messages (later `tool-agent`, `multi-agent`) |
+| `ENGINE` | `deterministic` | which engine handles messages: `deterministic`, `tool-agent` (`multi-agent` later) |
+| `SHOW_TOOL_TRACE` | unset | `tool-agent` only: stream a progress line per tool call to the IDE (e.g. `> reading local docs on 'dask'...`) |
 | `MODEL` | `qwen3` | Ollama model used for generation |
 | `EMBED_MODEL` | `qwen3` | Ollama model used for embeddings (must match the index) |
 | `OLLAMA_URL` | `http://localhost:11434` | base URL of the Ollama server |
@@ -93,7 +94,12 @@ End-to-end test (Ollama must be running):
    curl http://localhost:11434/api/chat -d '{"model":"qwen3","messages":[{"role":"user","content":"/dask how to parallelize a groupby"}],"stream":true}'
    ```
 
-With the `deterministic` engine the routing only chooses the context for the model: `/tag` for a known topic pulls the local RAG chunks, a URL in the message reads that page, `/web <query>` searches the web. In all three cases the retrieved text and the question are sent to the Ollama model, which writes the answer. Anything else goes straight to the model, which answers from its own knowledge.
+### Engines
+
+The `ENGINE` variable, set in `.env` like the other variables, selects how a message is handled. The engines coexist in the code and are selected by configuration.
+
+- `deterministic`: fixed rules, no LLM decides the routing. `/tag` for an indexed topic pulls the local RAG chunks, a URL reads that page, `/web <query>` searches the web; in all three the retrieved text and the question go to the model, which writes the answer. Anything else passes straight to the model
+- `tool-agent`: an [any_agent](https://github.com/mozilla-ai/any-agent) orchestrator (tinyagent) decides which tools to use (`list_topics`, `retrieve`, `search_web`, `visit_webpage`). Their docstrings are richer than usual on purpose: any_agent passes each tool's docstring to the LLM as its description, so the docstring is what guides the model's tool choice. With `SHOW_TOOL_TRACE` on, a progress line is streamed to the IDE before each tool runs, so the chat is not frozen while the agent works (the final answer still arrives in one block)
 
 ### OpenAI-compatible
 
@@ -138,9 +144,11 @@ custom-ai-agents/
   app/  # FastAPI app and the blocks it manages
     proxy.py  # FastAPI app mimicking the Ollama API, uvicorn entrypoint
     router.py  # Router: selects the engine from the ENGINE parameter
+    prompts.py  # load_prompt: read a prompt from prompts/
     engine/  # message-handling strategies, coexisting and selected by ENGINE
       base.py  # Engine interface: handle(message)
       deterministic.py  # DeterministicEngine: /tag, url, /web, else rules
+      tool_agent.py  # ToolAgentEngine: an any_agent orchestrator picks the tools
     ag/  # augmented generation: local indexed knowledge sources
       base.py  # Retriever interface: list_topics(), retrieve(topic, query)
       chroma_db.py  # ChromaDb(Retriever): read side + indexing
@@ -148,11 +156,12 @@ custom-ai-agents/
       web_browsing.py  # WebBrowser: search_web, visit_webpage
   scripts/  # lean entrypoints calling app/
     document_manager/  # indexing and debug scripts
+  prompts/  # prompt templates in markdown, loaded per engine
   tests/  # tests (pytest)
   data/  # local data
     chroma_db/  # persisted ChromaDB (ignored, only a versioned placeholder)
     documents/  # RAG corpus (only the README is versioned)
-  ollama/
+  modelfiles/
     Modelfile  # custom model with system prompt
   pyproject.toml  # dependencies + ruff/pyright/pytest config
   Makefile  # sync, test, lint, format, typecheck
