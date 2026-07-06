@@ -59,3 +59,16 @@ async def test_tool_agent_streams_tool_trace_when_enabled():
     content = resp.json()["message"]["content"]
     assert "> " in content
     assert content.strip()
+
+
+async def test_agent_as_tool_writes_code_via_real_ollama():
+    prompt = "write python code to compute the mean DepDelay per Origin in dask"
+    transport = ASGITransport(app=_app("agent-as-tool"))
+    async with AsyncClient(transport=transport, base_url="http://test", timeout=600) as client:
+        resp = await client.post(
+            "/api/chat",
+            json={"messages": [{"role": "user", "content": prompt}], "stream": False},
+        )
+    assert resp.status_code == 200
+    content = resp.json()["message"]["content"]
+    assert "```" in content

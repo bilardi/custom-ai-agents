@@ -49,9 +49,10 @@ ollama create coding -f modelfiles/Modelfile
 
 | Variable | Default | Controls |
 |---|---|---|
-| `ENGINE` | `deterministic` | which engine handles messages: `deterministic`, `tool-agent` (`multi-agent` later) |
-| `SHOW_TOOL_TRACE` | unset | `tool-agent` only: stream a progress line per tool call to the IDE (e.g. `> reading local docs on 'dask'...`) |
-| `MODEL` | `qwen3` | Ollama model used for generation |
+| `ENGINE` | `deterministic` | which engine handles messages: `deterministic`, `tool-agent`, `agent-as-tool` (`multi-agent` later) |
+| `SHOW_TOOL_TRACE` | unset | `tool-agent`/`agent-as-tool`: stream a progress line per tool call to the IDE (e.g. `> reading local docs on 'dask'...`) |
+| `MODEL` | `qwen3` | Ollama model used for generation (the orchestrator model an IDE talks to) |
+| `CODER_MODEL` | `coding` | `agent-as-tool` only: model for the coder sub-agent |
 | `EMBED_MODEL` | `nomic-embed-text` | Ollama model used for embeddings; a dedicated retrieval model beats a general LLM and must match the index |
 | `OLLAMA_URL` | `http://localhost:11434` | base URL of the Ollama server |
 | `TOP_K` | `3` | number of RAG chunks retrieved per query; raise it to reach thinly documented topics |
@@ -102,6 +103,7 @@ The `ENGINE` variable, set in `.env` like the other variables, selects how a mes
 
 - `deterministic`: fixed rules, no LLM decides the routing. `/tag` for an indexed topic pulls the local RAG chunks, a URL reads that page, `/web <query>` searches the web; in all three the retrieved text and the question go to the model, which writes the answer. Anything else passes straight to the model
 - `tool-agent`: an [any_agent](https://github.com/mozilla-ai/any-agent) orchestrator (tinyagent) decides which tools to use (`list_topics`, `retrieve`, `search_web`, `visit_webpage`). Their docstrings are richer than usual on purpose: any_agent passes each tool's docstring to the LLM as its description, so the docstring is what guides the model's tool choice. With `SHOW_TOOL_TRACE` on, a progress line is streamed to the IDE before each tool runs, so the chat is not frozen while the agent works (the final answer still arrives in one block)
+- `agent-as-tool`: the `tool-agent` orchestrator plus a `write_code` tool that delegates to a coder sub-agent (the agent-as-tool pattern). The coder runs on `CODER_MODEL`, is grounded on the documentation the orchestrator passes it (and can `retrieve` more), and its code is validated (syntax gate, ruff signal, one repair) before being returned. A full `multi-agent` mode (peer agents with handoff) is a later phase
 
 ### OpenAI-compatible
 

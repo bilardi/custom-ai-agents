@@ -2,7 +2,12 @@
 
 from unittest.mock import MagicMock
 
-from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback
+from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback, _describe_tool
+
+
+def test_describe_tool_covers_write_code_and_fallback():
+    assert _describe_tool("write_code", {}) == "> writing code...\n\n"
+    assert _describe_tool("unknown", {}).startswith("> running unknown")
 
 
 def _agent(final_output, on_run=None):

@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.ag.chroma_db import ChromaDb
+from app.agents import Coder
 from app.engine.deterministic import DeterministicEngine
 from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback
 from app.prompts import load_prompt
@@ -183,6 +184,44 @@ def build_app() -> FastAPI:
             )
 
         engines["tool-agent"] = ToolAgentEngine(agent_factory=make_agent, show_trace=show_trace)
+    elif mode == "agent-as-tool":
+        show_trace = os.getenv("SHOW_TOOL_TRACE", "").lower() in {"1", "true", "yes"}
+        coder_model = os.getenv("CODER_MODEL", "coding")
+
+        async def make_coder() -> AnyAgent:
+            return await AnyAgent.create_async(
+                "tinyagent",
+                AgentConfig(
+                    model_id=f"ollama:{coder_model}",
+                    api_base=ollama_url,
+                    instructions=load_prompt("coder"),
+                    tools=[ag.retrieve],
+                ),
+            )
+
+        coder = Coder(agent_factory=make_coder)
+
+        async def make_orchestrator() -> AnyAgent:
+            return await AnyAgent.create_async(
+                "tinyagent",
+                AgentConfig(
+                    model_id=f"ollama:{model}",
+                    api_base=ollama_url,
+                    instructions=load_prompt("tool_agent"),
+                    tools=[
+                        ag.list_topics,
+                        ag.retrieve,
+                        web.search_web,
+                        web.visit_webpage,
+                        coder.write_code,
+                    ],
+                    callbacks=[*get_default_callbacks(), ToolTraceCallback()],
+                ),
+            )
+
+        engines["agent-as-tool"] = ToolAgentEngine(
+            agent_factory=make_orchestrator, show_trace=show_trace
+        )
 
     router = Router(engines=engines, mode=mode)
     return create_app(router=router, model=model, ollama_url=ollama_url)

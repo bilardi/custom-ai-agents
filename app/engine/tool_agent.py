@@ -30,6 +30,8 @@ def _describe_tool(name: str, args: dict[str, Any]) -> str:
         return f"> searching the web for '{args.get('query', '')}'...\n\n"
     if name == "visit_webpage":
         return f"> opening {args.get('url', '')}...\n\n"
+    if name == "write_code":
+        return "> writing code...\n\n"
     return f"> running {name}...\n\n"
 
 
