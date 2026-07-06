@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-07-06
+### 🚀 Features
+- Add tool-agent engine on any_agent tinyagent with async engines and prompt loader
+- Stream tool-call trace to the IDE behind SHOW_TOOL_TRACE (async engine streaming)
+- Ground tool-agent answers on retrieved chunks (nomic embedder, larger chunks, chunk overlap, reindex reset)
+
+### 💼 Other
+- Release 0.1.0
+
 ## [0.0.1] - 2026-07-04
 ### 🚀 Features
 - Add WebBrowser tool class in app/tools
@@ -28,5 +37,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Scaffold app config, tests skeleton and docs
 - Add release tagging and changelog (bump-my-version, git-cliff)
 
+[0.1.0]: https://github.com/bilardi/custom-ai-agents/compare/v0.0.1...v0.1.0
 [0.0.1]: https://github.com/bilardi/custom-ai-agents/compare/...v0.0.1
 
