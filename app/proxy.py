@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from app.ag.chroma_db import ChromaDb
-from app.agents import Coder
+from app.agents import Coder, Reviewer
 from app.engine.deterministic import DeterministicEngine
 from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback
 from app.prompts import load_prompt
@@ -195,11 +195,23 @@ def build_app() -> FastAPI:
                     model_id=f"ollama:{coder_model}",
                     api_base=ollama_url,
                     instructions=load_prompt("coder"),
-                    tools=[ag.retrieve],
+                    tools=[ag.list_topics, ag.retrieve],
                 ),
             )
 
-        coder = Coder(agent_factory=make_coder)
+        reviewer_model = os.getenv("REVIEWER_MODEL", coder_model)
+
+        async def make_reviewer() -> AnyAgent:
+            return await AnyAgent.create_async(
+                "tinyagent",
+                AgentConfig(
+                    model_id=f"ollama:{reviewer_model}",
+                    api_base=ollama_url,
+                    instructions=load_prompt("reviewer"),
+                ),
+            )
+
+        coder = Coder(agent_factory=make_coder, reviewer=Reviewer(agent_factory=make_reviewer))
 
         async def make_orchestrator() -> AnyAgent:
             return await AnyAgent.create_async(
@@ -207,7 +219,7 @@ def build_app() -> FastAPI:
                 AgentConfig(
                     model_id=f"ollama:{model}",
                     api_base=ollama_url,
-                    instructions=load_prompt("tool_agent"),
+                    instructions=load_prompt("agent_as_tool"),
                     tools=[
                         ag.list_topics,
                         ag.retrieve,

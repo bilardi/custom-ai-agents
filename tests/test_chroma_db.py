@@ -132,6 +132,16 @@ def test_retrieve_returns_chunks_for_topic():
     assert db.retrieve("dask", "how to parallelize") == ["chunk one", "chunk two"]
 
 
+def test_retrieve_unknown_topic_degrades_with_available_topics():
+    """retrieve on a topic with no documents returns a hint, not an exception."""
+    client = FakeClient({"dask": FakeCollection("dask", count=2, documents=["c"])})
+    db = ChromaDb(client=client, session=_session_returning([0.1]))
+    result = db.retrieve("dask.dataframe", "groupby")
+    assert len(result) == 1
+    assert "dask.dataframe" in result[0]
+    assert "Available topics" in result[0]
+
+
 def test_add_indexes_each_chunk():
     """add splits the text and stores one entry per chunk."""
     client = FakeClient()

@@ -1,7 +1,6 @@
 """Tool-agent engine: an any_agent orchestrator decides which tools to use."""
 
 import asyncio
-import contextvars
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
@@ -9,11 +8,7 @@ from any_agent.callbacks.base import Callback
 from any_agent.callbacks.context import Context
 
 from app.engine.base import Engine
-
-# Per-request queue the trace callback writes to; None when tracing is off.
-_trace_queue: contextvars.ContextVar[asyncio.Queue[str] | None] = contextvars.ContextVar(
-    "tool_trace_queue", default=None
-)
+from app.trace import emit, start_trace
 
 
 def _describe_tool(name: str, args: dict[str, Any]) -> str:
@@ -45,10 +40,9 @@ class ToolTraceCallback(Callback):
         **kwargs: Any,  # noqa: ANN401, ARG002
     ) -> Context:
         """Push a progress line for the tool about to run, if tracing is on."""
-        queue = _trace_queue.get()
-        if queue is not None and args:
+        if args:
             request = args[0]
-            queue.put_nowait(_describe_tool(request.get("name", ""), request.get("arguments", {})))
+            emit(_describe_tool(request.get("name", ""), request.get("arguments", {})))
         return context
 
 
@@ -85,8 +79,7 @@ class ToolAgentEngine(Engine):
         yield str(trace.final_output)
 
     async def _answer_with_trace(self, message: str) -> AsyncIterator[str]:
-        queue: asyncio.Queue[str] = asyncio.Queue()
-        _trace_queue.set(queue)
+        queue = start_trace()
         task = asyncio.ensure_future(self._agent.run_async(message))
         while not task.done() or not queue.empty():
             getter = asyncio.ensure_future(queue.get())

@@ -67,6 +67,9 @@ class ChromaDb(Retriever):
             The most relevant chunks as a list of strings.
 
         """
+        topics = self.list_topics()
+        if topic not in topics:
+            return [f"No documentation indexed for topic '{topic}'. Available topics: {topics}."]
         collection = self.client.get_collection(topic)
         embedding = self.get_embedding(query)
         result = collection.query(
