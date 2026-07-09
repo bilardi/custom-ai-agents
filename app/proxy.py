@@ -163,6 +163,9 @@ def build_app() -> FastAPI:
     num_ctx = int(context_length) if context_length else None
     ag = ChromaDb(embed_model=embed_model, ollama_url=f"{ollama_url}/api/embeddings", top_k=top_k)
     web = WebBrowser()
+    # Agents reach Ollama through its OpenAI-compatible /v1 endpoint: tool-calling is
+    # far more reliable there than via the native provider (which often skips delegation).
+    agent_api_base = f"{ollama_url}/v1"
 
     engines: dict[str, Engine] = {}
     if mode == "deterministic":
@@ -175,8 +178,9 @@ def build_app() -> FastAPI:
             return await AnyAgent.create_async(
                 "tinyagent",
                 AgentConfig(
-                    model_id=f"ollama:{model}",
-                    api_base=ollama_url,
+                    model_id=f"openai:{model}",
+                    api_base=agent_api_base,
+                    api_key="ollama",
                     instructions=load_prompt("tool_agent"),
                     tools=[ag.list_topics, ag.retrieve, web.search_web, web.visit_webpage],
                     callbacks=[*get_default_callbacks(), ToolTraceCallback()],
@@ -192,8 +196,9 @@ def build_app() -> FastAPI:
             return await AnyAgent.create_async(
                 "tinyagent",
                 AgentConfig(
-                    model_id=f"ollama:{coder_model}",
-                    api_base=ollama_url,
+                    model_id=f"openai:{coder_model}",
+                    api_base=agent_api_base,
+                    api_key="ollama",
                     instructions=load_prompt("coder"),
                     tools=[ag.list_topics, ag.retrieve],
                 ),
@@ -205,8 +210,9 @@ def build_app() -> FastAPI:
             return await AnyAgent.create_async(
                 "tinyagent",
                 AgentConfig(
-                    model_id=f"ollama:{reviewer_model}",
-                    api_base=ollama_url,
+                    model_id=f"openai:{reviewer_model}",
+                    api_base=agent_api_base,
+                    api_key="ollama",
                     instructions=load_prompt("reviewer"),
                 ),
             )
@@ -217,8 +223,9 @@ def build_app() -> FastAPI:
             return await AnyAgent.create_async(
                 "tinyagent",
                 AgentConfig(
-                    model_id=f"ollama:{model}",
-                    api_base=ollama_url,
+                    model_id=f"openai:{model}",
+                    api_base=agent_api_base,
+                    api_key="ollama",
                     instructions=load_prompt("agent_as_tool"),
                     tools=[
                         ag.list_topics,
