@@ -128,8 +128,11 @@ group = "Chores"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["integration: needs a running Ollama (opt-in, deselected by default)"]
-addopts = ["-m", "not integration"]
+markers = [
+  "integration: needs a running Ollama (opt-in, deselected by default)",
+  "benchmark: reproduces a benchmark; needs a running Ollama and specific models (opt-in)",
+]
+addopts = ["-m", "not integration and not benchmark"]
 # third-party deprecation from starlette TestClient, not from this project
 filterwarnings = ["ignore:Using .httpx. with .starlette.testclient."]
 
