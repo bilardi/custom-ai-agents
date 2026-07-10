@@ -10,6 +10,15 @@ from any_agent.callbacks.context import Context
 from app.engine.base import Engine
 from app.trace import emit, start_trace
 
+# Signatures of a tool call leaked into the final answer as text (seen with some
+# local models even via /v1): a malformed reply that should be regenerated once.
+_MALFORMED = ("<|python_tag|>", '{"name":', '"parameters"', "write_code(")
+
+
+def _is_malformed(text: str) -> bool:
+    """Return True if the final answer leaked a tool call as text instead of a real reply."""
+    return any(marker in text for marker in _MALFORMED)
+
 
 def _describe_tool(name: str, args: dict[str, Any]) -> str:
     """Return a human-readable progress line for a tool about to run.
@@ -74,13 +83,21 @@ class ToolAgentEngine(Engine):
             return self._answer_with_trace(message)
         return self._answer(message)
 
-    async def _answer(self, message: str) -> AsyncIterator[str]:
+    async def _final(self, message: str) -> str:
+        """Run the agent and return its final answer, regenerating once if malformed."""
         trace = await self._agent.run_async(message)
-        yield str(trace.final_output)
+        answer = str(trace.final_output)
+        if _is_malformed(answer):
+            trace = await self._agent.run_async(message)
+            answer = str(trace.final_output)
+        return answer
+
+    async def _answer(self, message: str) -> AsyncIterator[str]:
+        yield await self._final(message)
 
     async def _answer_with_trace(self, message: str) -> AsyncIterator[str]:
         queue = start_trace()
-        task = asyncio.ensure_future(self._agent.run_async(message))
+        task = asyncio.ensure_future(self._final(message))
         while not task.done() or not queue.empty():
             getter = asyncio.ensure_future(queue.get())
             done, _ = await asyncio.wait({getter, task}, return_when=asyncio.FIRST_COMPLETED)
@@ -88,5 +105,4 @@ class ToolAgentEngine(Engine):
                 yield getter.result()
             else:
                 getter.cancel()
-        trace = task.result()
-        yield str(trace.final_output)
+        yield task.result()

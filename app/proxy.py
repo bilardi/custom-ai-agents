@@ -154,7 +154,7 @@ def create_app(  # noqa: C901
 
 def build_app() -> FastAPI:
     """Compose the proxy from environment configuration."""
-    model = os.getenv("MODEL", "qwen3")
+    model = os.getenv("MODEL", "llama3.2:3b")
     embed_model = os.getenv("EMBED_MODEL", "nomic-embed-text")
     ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
     mode = os.getenv("ENGINE", "deterministic")
@@ -190,7 +190,7 @@ def build_app() -> FastAPI:
         engines["tool-agent"] = ToolAgentEngine(agent_factory=make_agent, show_trace=show_trace)
     elif mode == "agent-as-tool":
         show_trace = os.getenv("SHOW_TOOL_TRACE", "").lower() in {"1", "true", "yes"}
-        coder_model = os.getenv("CODER_MODEL", "coding")
+        coder_model = os.getenv("CODER_MODEL", model)
 
         async def make_coder() -> AnyAgent:
             return await AnyAgent.create_async(

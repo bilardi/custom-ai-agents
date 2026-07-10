@@ -2,7 +2,12 @@
 
 from unittest.mock import MagicMock
 
-from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback, _describe_tool
+from app.engine.tool_agent import (
+    ToolAgentEngine,
+    ToolTraceCallback,
+    _describe_tool,
+    _is_malformed,
+)
 
 
 def test_describe_tool_covers_write_code_and_fallback():
@@ -29,6 +34,45 @@ def _factory(agent):
         return agent
 
     return factory
+
+
+def test_is_malformed_detects_leaked_tool_calls():
+    assert _is_malformed("<|python_tag|>write_code(task='x')")
+    assert _is_malformed('{"name": "write_code", "parameters": {}}')
+    assert _is_malformed("here is write_code(task='x')")
+    assert not _is_malformed("```python\nx = 1\n```")
+
+
+def _sequence_agent(outputs):
+    calls = {"n": 0}
+
+    async def run_async(_message):
+        i = calls["n"]
+        calls["n"] += 1
+        trace = MagicMock()
+        trace.final_output = outputs[min(i, len(outputs) - 1)]
+        return trace
+
+    agent = MagicMock()
+    agent.run_async = run_async
+    agent.calls = calls
+    return agent
+
+
+async def test_answer_retries_once_on_malformed_output():
+    agent = _sequence_agent(["<|python_tag|>write_code(task='x')", "clean answer"])
+    engine = ToolAgentEngine(agent_factory=_factory(agent))
+    result = await engine.handle("q")
+    assert "".join([chunk async for chunk in result]) == "clean answer"
+    assert agent.calls["n"] == 2
+
+
+async def test_answer_no_retry_when_clean():
+    agent = _sequence_agent(["clean answer"])
+    engine = ToolAgentEngine(agent_factory=_factory(agent))
+    result = await engine.handle("q")
+    assert "".join([chunk async for chunk in result]) == "clean answer"
+    assert agent.calls["n"] == 1
 
 
 async def test_handle_runs_agent_and_returns_final_output():

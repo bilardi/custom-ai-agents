@@ -51,8 +51,8 @@ ollama create coding -f modelfiles/Modelfile
 |---|---|---|
 | `ENGINE` | `deterministic` | which engine handles messages: `deterministic`, `tool-agent`, `agent-as-tool` (`multi-agent` later) |
 | `SHOW_TOOL_TRACE` | unset | `tool-agent`/`agent-as-tool`: stream a progress line per tool call to the IDE (e.g. `> reading local docs on 'dask'...`) |
-| `MODEL` | `qwen3` | Ollama model used for generation (the orchestrator model an IDE talks to) |
-| `CODER_MODEL` | `coding` | `agent-as-tool` only: model for the coder sub-agent |
+| `MODEL` | `llama3.2:3b` | Ollama model for generation / the orchestrator (reached via `/v1`); best small local model that delegates reliably |
+| `CODER_MODEL` | `MODEL` | `agent-as-tool` only: model for the coder sub-agent (`coding` for better code if VRAM allows) |
 | `REVIEWER_MODEL` | `CODER_MODEL` | `agent-as-tool` only: model for the reviewer sub-agent |
 | `EMBED_MODEL` | `nomic-embed-text` | Ollama model used for embeddings; a dedicated retrieval model beats a general LLM and must match the index |
 | `OLLAMA_URL` | `http://localhost:11434` | base URL of the Ollama server |
