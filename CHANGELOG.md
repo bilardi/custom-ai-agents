@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-07-11
+### 🚀 Features
+- Default to llama3.2:3b and regenerate malformed tool-call output (agent-as-tool)
+- Tolerate spurious tool-call kwargs on all agent tools (retrieve, list_topics, search_web, visit_webpage)
+- Make the agent-as-tool reviewer opt-in via REVIEW (default off)
+- HISTORY conversation window passed to the engine (default 1; agents use prior turns, deterministic routes on the last message)
+- Add multi-agent engine with triage handoff to python/aws specialists (OpenAI Agents SDK, opt-in)
+
+### 💼 Other
+- Release 0.4.0
+
+### 📚 Documentation
+- Add versioned benchmark section (harness in scripts/benchmark, tests in tests/scripts/benchmark, write-ups in benchmark/)
+- Add reviewer benchmark (catch vs false positives; capability-bound, checklist not adopted)
+- Add conversation benchmark validating the HISTORY window (0/5 vs 5/5 prior-snippet reuse)
+- Add multi-agent routing benchmark (llama3.2:3b 60% vs qwen2.5 90% handoff)
+
 ## [0.3.0] - 2026-07-11
 ### 🚀 Features
 - Use Ollama's OpenAI-compatible /v1 endpoint for agent tool-calling
@@ -52,6 +69,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Scaffold app config, tests skeleton and docs
 - Add release tagging and changelog (bump-my-version, git-cliff)
 
+[0.4.0]: https://github.com/bilardi/custom-ai-agents/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/bilardi/custom-ai-agents/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/bilardi/custom-ai-agents/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/bilardi/custom-ai-agents/compare/v0.0.1...v0.1.0
