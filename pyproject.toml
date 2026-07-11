@@ -1,6 +1,6 @@
 [project]
 name = "custom-ai-agents"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.13"
 dependencies = [
     "any_agent",
@@ -38,7 +38,7 @@ package = false
 # bumpversion
 # ---------------------------------------------------------------------------
 [tool.bumpversion]
-current_version = "0.2.0"
+current_version = "0.3.0"
 commit = true
 tag = true
 tag_name = "v{new_version}"
