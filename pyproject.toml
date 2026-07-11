@@ -29,6 +29,9 @@ dev = [
     "pytest-asyncio",
     "ruff",
 ]
+# OpenAI Agents SDK for agent handoff (any_agent's openai framework), opt-in:
+# uv sync --group multi-agent
+multi-agent = ["any-agent[openai]"]
 
 # This project is an app, not a distributable package.
 [tool.uv]

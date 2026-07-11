@@ -165,6 +165,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/6f/c1/c5ec0e6389e092a5a183688e44d13cce94f3a470cfacaef1a863157d0670/any_agent-1.18.0-py3-none-any.whl", hash = "sha256:76f31c8ba4f4d7dbf7b2e7d1fa13f7dd48d041c8960fbf3c36523dea5a184138", size = 112199, upload-time = "2026-02-18T16:04:06.315Z" },
 ]
 
+[package.optional-dependencies]
+openai = [
+    { name = "openai-agents" },
+]
+
 [[package]]
 name = "any-llm-sdk"
 version = "1.19.0"
@@ -593,6 +598,9 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
+multi-agent = [
+    { name = "any-agent", extra = ["openai"] },
+]
 
 [package.metadata]
 requires-dist = [
@@ -622,6 +630,7 @@ dev = [
     { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
+multi-agent = [{ name = "any-agent", extras = ["openai"] }]
 
 [[package]]
 name = "distro"
@@ -828,6 +837,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b5/c8/f439cffde755cffa462bfbb156278fa6f9d09119719af9814b858fd4f81f/googleapis_common_protos-1.75.0.tar.gz", hash = "sha256:53a062ff3c32552fbd62c11fe23768b78e4ddf0494d5e5fd97d3f4689c75fbbd", size = 151035, upload-time = "2026-05-07T08:04:49.423Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e7/c8/e2645aa8ed02fd4c7a2f59d68783b65b1f3cbdfe39a6308e156509d1fee8/googleapis_common_protos-1.75.0-py3-none-any.whl", hash = "sha256:961ed60399c457ceb0ee8f285a84c870aabc9c6a832b9d37bb281b5bebde43ed", size = 300631, upload-time = "2026-05-07T08:03:30.345Z" },
+]
+
+[[package]]
+name = "griffelib"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/33/e4/8d187ea29c2e30b3a09505c567513077d6117861bde1fbd997a167f262ec/griffelib-2.1.0.tar.gz", hash = "sha256:762a186d2c6fd6794d4ea20d428d597ffb857cb56b66421651cbba15bdd5e813", size = 216234, upload-time = "2026-06-19T12:05:42.278Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e4/d3/5268aeabf2ad82658c4e2ff3a060648d0f02f3926cb53247c0e4d0dab49e/griffelib-2.1.0-py3-none-any.whl", hash = "sha256:cc7b3d2d2865ad0b909fcc38086e3f554b5ea7acbaa7bbb7ecaa3f5dfb7d9f00", size = 142560, upload-time = "2026-06-19T12:05:38.742Z" },
 ]
 
 [[package]]
@@ -1589,6 +1607,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/49/f5/7c7cb955305cb41f7f3c5fd7e0e38bf6bbf2658468863d4b7b868a5cb8df/openai-2.44.0.tar.gz", hash = "sha256:68a5a5ffad82b8ff7d451c437529fb64f7c3b8123aaf0c021966a882d9e3947d", size = 988753, upload-time = "2026-06-24T20:56:02.293Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ae/f4/561ed79fd94876160018a5e75254cfcb9b0e62d4dded9dcb20072e86d623/openai-2.44.0-py3-none-any.whl", hash = "sha256:0a2a3ab2e29aeda368700f662ff9ba0f9df17ba4c54577a64e08b8115a3cc0ad", size = 1366216, upload-time = "2026-06-24T20:55:58.882Z" },
+]
+
+[[package]]
+name = "openai-agents"
+version = "0.18.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "griffelib" },
+    { name = "mcp" },
+    { name = "openai" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d7/b0/4ee0eda742e395fa48f625a96ef0713c53b49f397f9c5fadcef417d021b3/openai_agents-0.18.1.tar.gz", hash = "sha256:689ad88c8f64435413dde707ca45fb42d55217ff6ef63aab3d638c33f78e04bf", size = 5521444, upload-time = "2026-07-09T23:39:18.907Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/5d/7f6a9a87279761091f864b3f39a872b5c1653f7a14468e530c10685cc0ee/openai_agents-0.18.1-py3-none-any.whl", hash = "sha256:d78b868911de3a202996dce1a333732c6f89e4dd11f83b7f2a7a62b9723dc360", size = 862813, upload-time = "2026-07-09T23:39:16.744Z" },
 ]
 
 [[package]]

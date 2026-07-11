@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from app.ag.chroma_db import ChromaDb
 from app.agents import Coder, Reviewer
 from app.engine.deterministic import DeterministicEngine
+from app.engine.multi_agent import MultiAgentEngine
 from app.engine.tool_agent import ToolAgentEngine, ToolTraceCallback
 from app.prompts import load_prompt
 from app.router import Router
@@ -154,6 +155,52 @@ def create_app(  # noqa: C901
     return app
 
 
+def _multi_agent_engine(model: str, agent_api_base: str) -> MultiAgentEngine:
+    """Build the multi-agent engine: a triage agent handing off to specialists.
+
+    Uses the OpenAI Agents SDK (opt-in dependency), with the model pointed at
+    Ollama's /v1 endpoint; the SDK is imported lazily so it is needed only here.
+    """
+    try:
+        from agents import (  # noqa: PLC0415 (opt-in SDK, imported lazily)
+            Agent,
+            OpenAIChatCompletionsModel,
+            set_tracing_disabled,
+        )
+        from openai import AsyncOpenAI  # noqa: PLC0415 (opt-in SDK path)
+    except ImportError as error:
+        message = (
+            "ENGINE=multi-agent needs the OpenAI Agents SDK; "
+            "install it with: uv sync --group multi-agent"
+        )
+        raise RuntimeError(message) from error
+
+    set_tracing_disabled(True)  # the SDK would otherwise try to export traces to OpenAI
+    sdk_model = OpenAIChatCompletionsModel(
+        model=model,
+        openai_client=AsyncOpenAI(base_url=agent_api_base, api_key="ollama"),
+    )
+    python_expert = Agent(
+        name="python_expert",
+        handoff_description="Writing or fixing Python code",
+        instructions=load_prompt("python_expert"),
+        model=sdk_model,
+    )
+    aws_expert = Agent(
+        name="aws_expert",
+        handoff_description="AWS services, CLI and infrastructure",
+        instructions=load_prompt("aws_expert"),
+        model=sdk_model,
+    )
+    entry = Agent(
+        name="triage",
+        instructions=load_prompt("triage"),
+        model=sdk_model,
+        handoffs=[python_expert, aws_expert],
+    )
+    return MultiAgentEngine(entry=entry)
+
+
 def build_app() -> FastAPI:
     """Compose the proxy from environment configuration."""
     model = os.getenv("MODEL", "llama3.2:3b")
@@ -250,6 +297,8 @@ def build_app() -> FastAPI:
         engines["agent-as-tool"] = ToolAgentEngine(
             agent_factory=make_orchestrator, show_trace=show_trace
         )
+    elif mode == "multi-agent":
+        engines["multi-agent"] = _multi_agent_engine(model, agent_api_base)
 
     history = int(os.getenv("HISTORY", "1"))
     router = Router(engines=engines, mode=mode)

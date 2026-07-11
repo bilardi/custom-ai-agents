@@ -4,6 +4,17 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Iterator
 
 
+def render_prompt(messages: list[dict[str, str]]) -> str:
+    """Render a conversation window as a single prompt for an agent.
+
+    A single message is returned unchanged (default HISTORY=1); multiple messages
+    are rendered as a `role: content` transcript so the agent sees the prior turns.
+    """
+    if len(messages) == 1:
+        return messages[0]["content"]
+    return "\n".join(f"{message['role']}: {message['content']}" for message in messages)
+
+
 class Engine(ABC):
     """Strategy that turns an incoming message into a token stream or a pass-through."""
 

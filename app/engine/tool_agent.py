@@ -7,7 +7,7 @@ from typing import Any
 from any_agent.callbacks.base import Callback
 from any_agent.callbacks.context import Context
 
-from app.engine.base import Engine
+from app.engine.base import Engine, render_prompt
 from app.trace import emit, start_trace
 
 # Signatures of a tool call leaked into the final answer as text (seen with some
@@ -18,18 +18,6 @@ _MALFORMED = ("<|python_tag|>", '{"name":', '"parameters"', "write_code(")
 def _is_malformed(text: str) -> bool:
     """Return True if the final answer leaked a tool call as text instead of a real reply."""
     return any(marker in text for marker in _MALFORMED)
-
-
-def _to_prompt(messages: list[dict[str, str]]) -> str:
-    """Render the conversation window as the agent prompt.
-
-    A single message is passed through unchanged (default HISTORY=1); multiple
-    messages are rendered as a `role: content` transcript so the agent sees the
-    prior turns.
-    """
-    if len(messages) == 1:
-        return messages[0]["content"]
-    return "\n".join(f"{message['role']}: {message['content']}" for message in messages)
 
 
 def _describe_tool(name: str, args: dict[str, Any]) -> str:
@@ -95,7 +83,7 @@ class ToolAgentEngine(Engine):
         """
         if self._agent is None:
             self._agent = await self._agent_factory()
-        prompt = _to_prompt(messages)
+        prompt = render_prompt(messages)
         if self._show_trace:
             return self._answer_with_trace(prompt)
         return self._answer(prompt)

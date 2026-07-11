@@ -2,12 +2,12 @@
 
 from unittest.mock import MagicMock
 
+from app.engine.base import render_prompt
 from app.engine.tool_agent import (
     ToolAgentEngine,
     ToolTraceCallback,
     _describe_tool,
     _is_malformed,
-    _to_prompt,
 )
 
 
@@ -117,14 +117,14 @@ async def test_handle_streams_tool_trace_before_final_output():
     ]
 
 
-def test_to_prompt_passes_single_message_through():
-    assert _to_prompt([{"role": "user", "content": "hello"}]) == "hello"
+def test_render_prompt_passes_single_message_through():
+    assert render_prompt([{"role": "user", "content": "hello"}]) == "hello"
 
 
-def test_to_prompt_renders_multi_message_transcript():
+def test_render_prompt_renders_multi_message_transcript():
     messages = [
         {"role": "user", "content": "first"},
         {"role": "assistant", "content": "reply"},
         {"role": "user", "content": "second"},
     ]
-    assert _to_prompt(messages) == "user: first\nassistant: reply\nuser: second"
+    assert render_prompt(messages) == "user: first\nassistant: reply\nuser: second"
