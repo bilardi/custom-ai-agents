@@ -42,7 +42,7 @@ class ChromaDb(Retriever):
         )
         self.session = session or requests
 
-    def list_topics(self) -> list[str]:
+    def list_topics(self, **_kwargs: Any) -> list[str]:  # noqa: ANN401
         """List the available local documentation topics.
 
         Returns:
@@ -56,7 +56,7 @@ class ChromaDb(Retriever):
         if topic in [c.name for c in self.client.list_collections()]:
             self.client.delete_collection(topic)
 
-    def retrieve(self, topic: str, query: str) -> list[str]:
+    def retrieve(self, topic: str, query: str, **_kwargs: Any) -> list[str]:  # noqa: ANN401
         """Retrieve the chunks of a topic most relevant to the query.
 
         Args:

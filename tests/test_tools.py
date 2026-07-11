@@ -63,3 +63,21 @@ def test_visit_webpage_returns_error_message_on_request_failure():
     browser = WebBrowser(session=fake_session)
     output = browser.visit_webpage("http://example.com")
     assert "Error fetching the webpage" in output
+
+
+def test_search_web_tolerates_extra_kwargs():
+    """A spurious kwarg injected by a tool-tuned model is ignored, not raised."""
+    fake_ddgs = MagicMock()
+    fake_ddgs.text.return_value = []
+    browser = WebBrowser(ddgs_factory=lambda: fake_ddgs)
+    assert browser.search_web("query", toolbench_rapidapi_key="x") == ""
+
+
+def test_visit_webpage_tolerates_extra_kwargs():
+    """A spurious kwarg injected by a tool-tuned model is ignored, not raised."""
+    response = MagicMock()
+    response.text = "<p>ok</p>"
+    fake_session = MagicMock()
+    fake_session.get.return_value = response
+    browser = WebBrowser(session=fake_session)
+    assert "ok" in browser.visit_webpage("http://example.com", toolbench_rapidapi_key="x")

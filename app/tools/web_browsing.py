@@ -32,7 +32,7 @@ class WebBrowser:
         self.session: _Fetcher = session or requests.Session()
         self.ddgs_factory = ddgs_factory
 
-    def search_web(self, query: str) -> str:
+    def search_web(self, query: str, **_kwargs: Any) -> str:  # noqa: ANN401
         """Perform a duckduckgo web search and return the top results.
 
         Args:
@@ -48,7 +48,7 @@ class WebBrowser:
             f"[{result['title']}]({result['href']})\n{result['body']}" for result in results
         )
 
-    def visit_webpage(self, url: str) -> str:
+    def visit_webpage(self, url: str, **_kwargs: Any) -> str:  # noqa: ANN401
         """Visit a webpage and read its content as a markdown string.
 
         Args:

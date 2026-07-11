@@ -132,6 +132,21 @@ def test_retrieve_returns_chunks_for_topic():
     assert db.retrieve("dask", "how to parallelize") == ["chunk one", "chunk two"]
 
 
+def test_list_topics_tolerates_extra_kwargs():
+    """A spurious kwarg injected by a tool-tuned model is ignored, not raised."""
+    client = FakeClient({"dask": FakeCollection("dask", count=5)})
+    db = ChromaDb(client=client)
+    assert db.list_topics(toolbench_rapidapi_key="x") == ["dask"]
+
+
+def test_retrieve_tolerates_extra_kwargs():
+    """A spurious kwarg injected by a tool-tuned model is ignored, not raised."""
+    collection = FakeCollection("dask", count=2, documents=["chunk one", "chunk two"])
+    client = FakeClient({"dask": collection})
+    db = ChromaDb(client=client, session=_session_returning([0.1, 0.2]), top_k=2)
+    assert db.retrieve("dask", "q", toolbench_rapidapi_key="x") == ["chunk one", "chunk two"]
+
+
 def test_retrieve_unknown_topic_degrades_with_available_topics():
     """retrieve on a topic with no documents returns a hint, not an exception."""
     client = FakeClient({"dask": FakeCollection("dask", count=2, documents=["c"])})
