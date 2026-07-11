@@ -20,6 +20,18 @@ def _is_malformed(text: str) -> bool:
     return any(marker in text for marker in _MALFORMED)
 
 
+def _to_prompt(messages: list[dict[str, str]]) -> str:
+    """Render the conversation window as the agent prompt.
+
+    A single message is passed through unchanged (default HISTORY=1); multiple
+    messages are rendered as a `role: content` transcript so the agent sees the
+    prior turns.
+    """
+    if len(messages) == 1:
+        return messages[0]["content"]
+    return "\n".join(f"{message['role']}: {message['content']}" for message in messages)
+
+
 def _describe_tool(name: str, args: dict[str, Any]) -> str:
     """Return a human-readable progress line for a tool about to run.
 
@@ -75,13 +87,18 @@ class ToolAgentEngine(Engine):
         self._agent: Any = None
         self._show_trace = show_trace
 
-    async def handle(self, message: str) -> AsyncIterator[str]:
-        """Run the agent and stream its answer (optionally preceded by a tool trace)."""
+    async def handle(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+        """Run the agent on the conversation window and stream its answer.
+
+        The window (sized by HISTORY) is rendered into the prompt, optionally
+        preceded by a tool trace.
+        """
         if self._agent is None:
             self._agent = await self._agent_factory()
+        prompt = _to_prompt(messages)
         if self._show_trace:
-            return self._answer_with_trace(message)
-        return self._answer(message)
+            return self._answer_with_trace(prompt)
+        return self._answer(prompt)
 
     async def _final(self, message: str) -> str:
         """Run the agent and return its final answer, regenerating once if malformed."""

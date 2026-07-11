@@ -11,8 +11,9 @@ async def test_router_delegates_to_selected_engine():
     engine = MagicMock()
     engine.handle = AsyncMock(return_value="RESULT")
     router = Router(engines={"deterministic": engine}, mode="deterministic")
-    assert await router.handle("hi") == "RESULT"
-    engine.handle.assert_awaited_once_with("hi")
+    messages = [{"role": "user", "content": "hi"}]
+    assert await router.handle(messages) == "RESULT"
+    engine.handle.assert_awaited_once_with(messages)
 
 
 def test_router_raises_on_unknown_mode():

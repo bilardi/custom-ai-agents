@@ -64,6 +64,7 @@ ollama create coding -f modelfiles/Modelfile
 | `MAX_WORDS` | `500` | chunk size in words (indexing); larger chunks keep an articulated topic whole and rank better |
 | `OVERLAP` | `0` | chunk overlap in words (indexing); helps only when chunks are small enough to split a topic |
 | `CONTEXT_LENGTH` | unset | generation context window (Ollama `num_ctx`); lower = faster |
+| `HISTORY` | `1` | trailing conversation messages passed to the engine (`1` = last message only, `0` = all). Raise it (e.g. `50`) for multi-turn with a larger `MODEL`; small models degrade tool-calling on long context. The `deterministic` engine ignores it (routes on the last message) |
 | `COLLECTION` | `dask` | topic to index (storage script) |
 | `DOCS_FOLDER` | `data/documents/dask` | folder to index (storage script) |
 | `RESET` | `false` | storage script: `true` wipes the collection before indexing (re-index from scratch), otherwise it appends |
@@ -112,7 +113,7 @@ The `ENGINE` variable, set in `.env` like the other variables, selects how a mes
 
 Which `.env` parameters each engine uses:
 
-- all engines: `ENGINE`, `OLLAMA_URL`, `MODEL`, `EMBED_MODEL` and `TOP_K` (RAG retrieval). `MODEL` default `llama3.2:3b`: for the agents it is the orchestrator, the best small local model that delegates reliably via `/v1` (benchmarked); for `deterministic` (generation) `qwen2.5` or `coding` give more grounded answers (benchmarked), while `llama3.2:3b` is ~4x faster with slightly lower quality
+- all engines: `ENGINE`, `OLLAMA_URL`, `MODEL`, `EMBED_MODEL` and `TOP_K` (RAG retrieval); `HISTORY` sizes the conversation window (the agents use the prior turns, `deterministic` routes on the last message only). `MODEL` default `llama3.2:3b`: for the agents it is the orchestrator, the best small local model that delegates reliably via `/v1` (benchmarked); for `deterministic` (generation) `qwen2.5` or `coding` give more grounded answers (benchmarked), while `llama3.2:3b` is ~4x faster with slightly lower quality
 - `deterministic` also: `CONTEXT_LENGTH` (generation `num_ctx`); set `MODEL=coding` for the coding persona
 - `tool-agent` also: `SHOW_TOOL_TRACE`
 - `agent-as-tool` also: `CODER_MODEL`, `REVIEW`, `REVIEWER_MODEL`, `SHOW_TOOL_TRACE`

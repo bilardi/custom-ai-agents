@@ -26,8 +26,24 @@ def test_chat_returns_routed_answer_without_calling_ollama():
     body = resp.json()
     assert body["message"]["content"] == "ROUTED"
     assert body["done"] is True
-    router.handle.assert_called_once_with("/dask x")
+    router.handle.assert_called_once_with([{"role": "user", "content": "/dask x"}])
     session.post.assert_not_called()
+
+
+def test_chat_passes_last_n_messages_when_history_is_set():
+    router = MagicMock()
+    router.handle = AsyncMock(return_value=["ROUTED"])
+    app = create_app(
+        router=router, session=MagicMock(), model="qwen3", ollama_url="http://ollama", history=2
+    )
+    client = TestClient(app)
+    messages = [
+        {"role": "user", "content": "one"},
+        {"role": "assistant", "content": "two"},
+        {"role": "user", "content": "/dask three"},
+    ]
+    client.post("/api/chat", json={"messages": messages, "stream": False})
+    router.handle.assert_awaited_once_with(messages[-2:])
 
 
 def test_chat_joins_streamed_tokens_without_extra_spaces():

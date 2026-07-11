@@ -41,8 +41,13 @@ class DeterministicEngine(Engine):
         self._web = web
         self._generate = generate
 
-    async def handle(self, message: str) -> Iterator[str] | None:
-        """Apply the deterministic rules and return a token stream, or None to pass through."""
+    async def handle(self, messages: list[dict[str, str]]) -> Iterator[str] | None:
+        """Apply the deterministic rules to the last message, or None to pass through.
+
+        The deterministic engine routes on the current message only; earlier history
+        (if any) is ignored, since routing keys off the `/tag` at the start.
+        """
+        message = messages[-1]["content"]
         tag = _extract_tag(message)
         if tag == "web":
             query = self._strip_tag(message, tag)

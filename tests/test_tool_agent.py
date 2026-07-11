@@ -7,7 +7,12 @@ from app.engine.tool_agent import (
     ToolTraceCallback,
     _describe_tool,
     _is_malformed,
+    _to_prompt,
 )
+
+
+def _msg(text):
+    return [{"role": "user", "content": text}]
 
 
 def test_describe_tool_covers_write_code_and_fallback():
@@ -62,7 +67,7 @@ def _sequence_agent(outputs):
 async def test_answer_retries_once_on_malformed_output():
     agent = _sequence_agent(["<|python_tag|>write_code(task='x')", "clean answer"])
     engine = ToolAgentEngine(agent_factory=_factory(agent))
-    result = await engine.handle("q")
+    result = await engine.handle(_msg("q"))
     assert "".join([chunk async for chunk in result]) == "clean answer"
     assert agent.calls["n"] == 2
 
@@ -70,7 +75,7 @@ async def test_answer_retries_once_on_malformed_output():
 async def test_answer_no_retry_when_clean():
     agent = _sequence_agent(["clean answer"])
     engine = ToolAgentEngine(agent_factory=_factory(agent))
-    result = await engine.handle("q")
+    result = await engine.handle(_msg("q"))
     assert "".join([chunk async for chunk in result]) == "clean answer"
     assert agent.calls["n"] == 1
 
@@ -78,7 +83,7 @@ async def test_answer_no_retry_when_clean():
 async def test_handle_runs_agent_and_returns_final_output():
     agent = _agent("AGENT ANSWER")
     engine = ToolAgentEngine(agent_factory=_factory(agent))
-    result = await engine.handle("what is dask?")
+    result = await engine.handle(_msg("what is dask?"))
     assert "".join([chunk async for chunk in result]) == "AGENT ANSWER"
 
 
@@ -90,7 +95,7 @@ async def test_handle_without_trace_ignores_tool_events():
 
     agent = _agent("ANSWER", on_run=on_run)
     engine = ToolAgentEngine(agent_factory=_factory(agent), show_trace=False)
-    result = await engine.handle("q")
+    result = await engine.handle(_msg("q"))
     assert [chunk async for chunk in result] == ["ANSWER"]
 
 
@@ -103,10 +108,23 @@ async def test_handle_streams_tool_trace_before_final_output():
 
     agent = _agent("ANSWER", on_run=on_run)
     engine = ToolAgentEngine(agent_factory=_factory(agent), show_trace=True)
-    result = await engine.handle("q")
+    result = await engine.handle(_msg("q"))
     chunks = [chunk async for chunk in result]
     assert chunks == [
         "> checking indexed topics...\n\n",
         "> reading local docs on 'dask'...\n\n",
         "ANSWER",
     ]
+
+
+def test_to_prompt_passes_single_message_through():
+    assert _to_prompt([{"role": "user", "content": "hello"}]) == "hello"
+
+
+def test_to_prompt_renders_multi_message_transcript():
+    messages = [
+        {"role": "user", "content": "first"},
+        {"role": "assistant", "content": "reply"},
+        {"role": "user", "content": "second"},
+    ]
+    assert _to_prompt(messages) == "user: first\nassistant: reply\nuser: second"

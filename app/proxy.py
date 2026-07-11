@@ -87,6 +87,7 @@ def create_app(  # noqa: C901
     session: Any = requests,  # noqa: ANN401 (injected HTTP client to Ollama)
     model: str = "qwen3",
     ollama_url: str = "http://localhost:11434",
+    history: int = 1,
 ) -> FastAPI:
     """Build the proxy app wired to a router and an Ollama HTTP client."""
     app = FastAPI()
@@ -103,8 +104,8 @@ def create_app(  # noqa: C901
     async def chat(request: Request) -> Response:
         body = await request.json()
         messages = body.get("messages", [])
-        last_message = messages[-1]["content"] if messages else ""
-        answer = await router.handle(last_message)
+        window = messages if history <= 0 else messages[-history:]
+        answer = await router.handle(window) if window else None
         if answer is not None:
             return await _routed_response(
                 model, answer, _chat_body, stream=body.get("stream", True)
@@ -114,7 +115,8 @@ def create_app(  # noqa: C901
     @app.post("/api/generate")
     async def generate(request: Request) -> Response:
         body = await request.json()
-        answer = await router.handle(body.get("prompt", ""))
+        prompt = body.get("prompt", "")
+        answer = await router.handle([{"role": "user", "content": prompt}]) if prompt else None
         if answer is not None:
             return await _routed_response(
                 model, answer, _generate_body, stream=body.get("stream", True)
@@ -249,5 +251,6 @@ def build_app() -> FastAPI:
             agent_factory=make_orchestrator, show_trace=show_trace
         )
 
+    history = int(os.getenv("HISTORY", "1"))
     router = Router(engines=engines, mode=mode)
-    return create_app(router=router, model=model, ollama_url=ollama_url)
+    return create_app(router=router, model=model, ollama_url=ollama_url, history=history)
