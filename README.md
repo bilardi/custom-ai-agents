@@ -56,7 +56,8 @@ ollama create coding -f modelfiles/Modelfile
 | `SHOW_TOOL_TRACE` | unset | `tool-agent`/`agent-as-tool`: stream a progress line per tool call to the IDE (e.g. `> reading local docs on 'dask'...`) |
 | `MODEL` | `llama3.2:3b` | Ollama model for generation / the orchestrator (reached via `/v1`); best small local model that delegates reliably |
 | `CODER_MODEL` | `MODEL` | `agent-as-tool` only: coder sub-agent model. On limited VRAM keep it equal to `MODEL` (one model loaded); `coding` gives no benefit here (the coder's prompt overrides its `SYSTEM`), use `qwen2.5` for better code only with spare VRAM |
-| `REVIEWER_MODEL` | `CODER_MODEL` | `agent-as-tool` only: model for the reviewer sub-agent |
+| `REVIEW` | unset | `agent-as-tool` only: opt-in LLM reviewer of the coder's output. Off by default: on a small local model it flags everything (no discriminating signal, see [benchmark/reviewer.md](benchmark/reviewer.md)); the coder's deterministic check (syntax/ruff) stays. Enable with a capable `REVIEWER_MODEL` |
+| `REVIEWER_MODEL` | `CODER_MODEL` | `agent-as-tool` only, when `REVIEW` is on: model for the reviewer sub-agent (use a capable model, e.g. `qwen2.5`) |
 | `EMBED_MODEL` | `nomic-embed-text` | Ollama model used for embeddings; a dedicated retrieval model beats a general LLM and must match the index |
 | `OLLAMA_URL` | `http://localhost:11434` | base URL of the Ollama server |
 | `TOP_K` | `3` | number of RAG chunks retrieved per query; raise it to reach thinly documented topics |
@@ -107,14 +108,14 @@ The `ENGINE` variable, set in `.env` like the other variables, selects how a mes
 
 - `deterministic`: fixed rules, no LLM decides the routing. `/tag` for an indexed topic pulls the local RAG chunks, a URL reads that page, `/web <query>` searches the web; in all three the retrieved text and the question go to the model, which writes the answer. Anything else passes straight to the model
 - `tool-agent`: an [any_agent](https://github.com/mozilla-ai/any-agent) orchestrator (tinyagent) decides which tools to use (`list_topics`, `retrieve`, `search_web`, `visit_webpage`). Their docstrings are richer than usual on purpose: any_agent passes each tool's docstring to the LLM as its description, so the docstring is what guides the model's tool choice. With `SHOW_TOOL_TRACE` on, a progress line is streamed to the IDE before each tool runs, so the chat is not frozen while the agent works (the final answer still arrives in one block)
-- `agent-as-tool`: the `tool-agent` orchestrator plus a `write_code` tool that delegates to a coder sub-agent (the agent-as-tool pattern). The coder runs on `CODER_MODEL`, is grounded on the documentation the orchestrator passes it (and can `retrieve` more), and its code is checked before being returned: a deterministic gate (syntax, ruff signal) plus a reviewer sub-agent (`REVIEWER_MODEL`) that critiques correctness and grounding, with one revision round. A full `multi-agent` mode (peer agents with handoff) is a later phase
+- `agent-as-tool`: the `tool-agent` orchestrator plus a `write_code` tool that delegates to a coder sub-agent (the agent-as-tool pattern). The coder runs on `CODER_MODEL`, is grounded on the documentation the orchestrator passes it (and can `retrieve` more), and its code is checked before being returned: a deterministic gate (syntax, ruff signal) always, plus an opt-in reviewer sub-agent (`REVIEW`, `REVIEWER_MODEL`) that critiques correctness and grounding, with one revision round. The reviewer is off by default: on a small local model it flags everything (no discriminating signal, see [benchmark/reviewer.md](benchmark/reviewer.md)), so the deterministic gate is the local safety net; enable it with a capable model. A full `multi-agent` mode (peer agents with handoff) is a later phase
 
 Which `.env` parameters each engine uses:
 
 - all engines: `ENGINE`, `OLLAMA_URL`, `MODEL`, `EMBED_MODEL` and `TOP_K` (RAG retrieval). `MODEL` default `llama3.2:3b`: for the agents it is the orchestrator, the best small local model that delegates reliably via `/v1` (benchmarked); for `deterministic` (generation) `qwen2.5` or `coding` give more grounded answers (benchmarked), while `llama3.2:3b` is ~4x faster with slightly lower quality
 - `deterministic` also: `CONTEXT_LENGTH` (generation `num_ctx`); set `MODEL=coding` for the coding persona
 - `tool-agent` also: `SHOW_TOOL_TRACE`
-- `agent-as-tool` also: `CODER_MODEL`, `REVIEWER_MODEL`, `SHOW_TOOL_TRACE`
+- `agent-as-tool` also: `CODER_MODEL`, `REVIEW`, `REVIEWER_MODEL`, `SHOW_TOOL_TRACE`
 
 `MAX_WORDS`, `OVERLAP`, `RESET`, `COLLECTION`, `DOCS_FOLDER` are used only by the indexing script (`scripts.document_manager.storage`), not by the running engine.
 

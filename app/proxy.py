@@ -204,20 +204,27 @@ def build_app() -> FastAPI:
                 ),
             )
 
-        reviewer_model = os.getenv("REVIEWER_MODEL", coder_model)
+        # The reviewer is opt-in (REVIEW): on a small local model it flags everything,
+        # adding no discriminating signal (see benchmark/reviewer.md); the deterministic
+        # gate in the coder stays. Enable it with a capable model via REVIEWER_MODEL.
+        reviewer: Reviewer | None = None
+        if os.getenv("REVIEW", "").lower() in {"1", "true", "yes"}:
+            reviewer_model = os.getenv("REVIEWER_MODEL", coder_model)
 
-        async def make_reviewer() -> AnyAgent:
-            return await AnyAgent.create_async(
-                "tinyagent",
-                AgentConfig(
-                    model_id=f"openai:{reviewer_model}",
-                    api_base=agent_api_base,
-                    api_key="ollama",
-                    instructions=load_prompt("reviewer"),
-                ),
-            )
+            async def make_reviewer() -> AnyAgent:
+                return await AnyAgent.create_async(
+                    "tinyagent",
+                    AgentConfig(
+                        model_id=f"openai:{reviewer_model}",
+                        api_base=agent_api_base,
+                        api_key="ollama",
+                        instructions=load_prompt("reviewer"),
+                    ),
+                )
 
-        coder = Coder(agent_factory=make_coder, reviewer=Reviewer(agent_factory=make_reviewer))
+            reviewer = Reviewer(agent_factory=make_reviewer)
+
+        coder = Coder(agent_factory=make_coder, reviewer=reviewer)
 
         async def make_orchestrator() -> AnyAgent:
             return await AnyAgent.create_async(
