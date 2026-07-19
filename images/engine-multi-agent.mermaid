@@ -1,6 +1,6 @@
 flowchart LR
   M[message] --> Tr[triage LM]
-  Tr -->|handoff| Py[python_expert]
-  Tr -->|handoff| Aws[aws_expert]
+  Tr -->|handoff| Py[python_expert LM]
+  Tr -->|handoff| Aws[aws_expert LM]
   Py --> Resp[response]
   Aws --> Resp

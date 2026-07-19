@@ -1,6 +1,10 @@
 flowchart LR
   M[message] --> O[orchestrator LM]
+  O -->|tool-call| T[retrieve / search_web / visit_webpage]
+  T -->|output| O
   O -->|write_code| C[coder LM]
+  C -->|tool-call| T
+  T -->|output| C
   C -->|code| V[code_validator]
   V -.->|opt-in| Rv[reviewer LM]
   V -->|feedback| C
