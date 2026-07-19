@@ -1,0 +1,24 @@
+flowchart TD
+    IDE[IDE extension] --> Proxy["Proxy (mimics Ollama API)"]
+    Proxy -->|ENGINE| Router{Router}
+    Router --> Det[deterministic]
+    Router --> TA[tool-agent]
+    Router --> AAT[agent-as-tool]
+    Router --> MA[multi-agent]
+    Det --> Tools
+    TA --> Tools
+    AAT --> Tools
+    AAT --> Agents
+    MA --> Specialists
+    subgraph Tools[tools]
+        RAG[(ChromaDB)]
+        Web[WebBrowser]
+    end
+    subgraph Agents[agents]
+        Coder[coder]
+        Reviewer[reviewer]
+    end
+    subgraph Specialists[specialists]
+        Py[python_expert]
+        Aws[aws_expert]
+    end

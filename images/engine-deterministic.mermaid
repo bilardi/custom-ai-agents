@@ -1,0 +1,10 @@
+flowchart LR
+  M[message] --> R{rule}
+  R -->|/tag| RAG[retrieve]
+  R -->|URL| P[visit_webpage]
+  R -->|/web| W[search_web]
+  R -->|else| PT[pass-through]
+  RAG --> Mod[model]
+  P --> Mod
+  W --> Mod
+  PT --> Mod

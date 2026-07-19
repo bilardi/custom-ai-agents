@@ -1,0 +1,7 @@
+flowchart LR
+  M[message] --> O[orchestrator LM]
+  O -->|tool-call| T[retrieve / search_web / visit_webpage]
+  T -->|output| O
+  O -->|response| G{guard<br>malformed?}
+  G -->|yes| O
+  G -->|no| Resp[response]

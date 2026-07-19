@@ -1,0 +1,11 @@
+flowchart LR
+  M[message] --> O[orchestrator LM]
+  O -->|write_code| C[coder LM]
+  C -->|code| V[code_validator]
+  V -.->|opt-in| Rv[reviewer LM]
+  V -->|feedback| C
+  Rv -->|feedback| C
+  C -->|final code| O
+  O -->|response| G{guard<br>malformed?}
+  G -->|yes| O
+  G -->|no| Resp[response]
