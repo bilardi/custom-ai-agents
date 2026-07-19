@@ -1,6 +1,68 @@
 # Custom AI Agents
 
-An app that mimics the Ollama API so it can be used from any Ollama-compatible IDE extension, adding `/tag` routing and a local RAG over ChromaDB.
+A local proxy that mimics the Ollama API so any Ollama-compatible IDE extension can use it, adding `/tag` routing and a local RAG over ChromaDB, with pluggable engines from a deterministic router to agentic orchestration (`ENGINE`).
+
+## Architecture
+
+The proxy mimics the Ollama API on `11434` and sits in front of Ollama on `11435`. It reads `ENGINE` and hands the conversation window (`HISTORY`) to a `Router`, which selects one engine: `deterministic` routes on fixed rules, the agentic engines let the model decide and reach Ollama through the OpenAI-compatible `/v1` endpoint for parsable tool-calls. Every engine can use the shared **tools** (ChromaDB for the RAG, the web browser); `agent-as-tool` adds the **agents** it consults (coder, reviewer), and `multi-agent` adds the **specialists** it hands off to (python_expert, aws_expert).
+
+```mermaid
+flowchart TD
+    IDE[IDE extension] --> Proxy["Proxy (mimics Ollama API)"]
+    Proxy -->|ENGINE| Router{Router}
+    Router --> Det[deterministic]
+    Router --> TA[tool-agent]
+    Router --> AAT[agent-as-tool]
+    Router --> MA[multi-agent]
+    Det --> Tools
+    TA --> Tools
+    AAT --> Tools
+    AAT --> Agents
+    MA --> Specialists
+    subgraph Tools[tools]
+        RAG[(ChromaDB)]
+        Web[WebBrowser]
+    end
+    subgraph Agents[agents]
+        Coder[coder]
+        Reviewer[reviewer]
+    end
+    subgraph Specialists[specialists]
+        Py[python_expert]
+        Aws[aws_expert]
+    end
+```
+
+The sequence diagram below traces one message: how the proxy selects the engine, how the deterministic path routes on the last message while the agentic path lets the orchestrator pick the tools, and how the answer goes back as a single JSON body or an NDJSON token stream.
+
+```mermaid
+sequenceDiagram
+    actor IDE as IDE extension
+    participant Proxy as Proxy (/api/chat, /api/generate)
+    participant Router
+    participant Engine
+    participant RAG as ChromaDB
+    participant Web as WebBrowser
+    participant Ollama
+
+    IDE->>Proxy: message (+ HISTORY window)
+    Proxy->>Router: select engine from ENGINE
+    Router->>Engine: handle(messages)
+    alt deterministic (rules on the last message)
+        Engine->>RAG: /tag -> retrieve(topic, query)
+        Engine->>Web: URL / /web -> visit or search
+        Engine->>Ollama: prompt = context + question
+    else agentic (tool-agent / agent-as-tool / multi-agent)
+        Engine->>Ollama: orchestrator decides (via /v1)
+        Engine->>RAG: list_topics / retrieve
+        Engine->>Web: search_web / visit_webpage
+        Note over Engine: agent-as-tool adds write_code (coder + reviewer)
+        Note over Engine: multi-agent hands off to python_expert / aws_expert
+    end
+    Ollama-->>Engine: tokens
+    Engine-->>Proxy: text / token stream
+    Proxy-->>IDE: JSON (stream:false) or NDJSON (stream:true)
+```
 
 ## Prerequisites
 
@@ -168,10 +230,16 @@ custom-ai-agents/
     proxy.py  # FastAPI app mimicking the Ollama API, uvicorn entrypoint
     router.py  # Router: selects the engine from the ENGINE parameter
     prompts.py  # load_prompt: read a prompt from prompts/
+    trace.py  # shared tool-trace primitive (emit/start_trace) for engines and agents
     engine/  # message-handling strategies, coexisting and selected by ENGINE
-      base.py  # Engine interface: handle(message)
+      base.py  # Engine interface: handle(messages)
       deterministic.py  # DeterministicEngine: /tag, url, /web, else rules
       tool_agent.py  # ToolAgentEngine: an any_agent orchestrator picks the tools
+      multi_agent.py  # MultiAgentEngine: triage hands off to specialists (OpenAI Agents SDK)
+    agents/  # LLM sub-agents (model, prompt, loop)
+      coder/  # coder sub-agent exposed as the write_code tool
+        code_validator.py  # deterministic gate: extract_code_blocks, check_code (syntax + ruff signal)
+      reviewer.py  # Reviewer: LLM critique of the coder's output (opt-in)
     ag/  # augmented generation: local indexed knowledge sources
       base.py  # Retriever interface: list_topics(), retrieve(topic, query)
       chroma_db.py  # ChromaDb(Retriever): read side + indexing
@@ -179,7 +247,9 @@ custom-ai-agents/
       web_browsing.py  # WebBrowser: search_web, visit_webpage
   scripts/  # lean entrypoints calling app/
     document_manager/  # indexing and debug scripts
-  prompts/  # prompt templates in markdown, loaded per engine
+    benchmark/  # reproducible benchmark harness
+  prompts/  # prompt templates in markdown, loaded per engine and agent
+  benchmark/  # benchmark write-ups and per-run outputs
   tests/  # tests (pytest)
   data/  # local data
     chroma_db/  # persisted ChromaDB (ignored, only a versioned placeholder)
@@ -187,7 +257,8 @@ custom-ai-agents/
   modelfiles/
     Modelfile  # custom model with system prompt
   pyproject.toml  # dependencies + ruff/pyright/pytest config
-  Makefile  # sync, test, lint, format, typecheck
+  Makefile  # sync, test, lint, format, typecheck, versioning
+  CHANGELOG.md  # generated by git-cliff on release
 ```
 
 ## Development
@@ -198,6 +269,13 @@ make test  # run unit tests
 make lint  # ruff check
 make format  # ruff format
 make typecheck  # pyright
+```
+
+Versioning (bump-my-version + git-cliff):
+
+```sh
+make major  # or minor / patch: bump version + regenerate CHANGELOG.md
+git push && git push --tags  # publish the release
 ```
 
 ## Blog post

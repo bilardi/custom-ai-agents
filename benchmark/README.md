@@ -2,9 +2,11 @@
 
 Reproducible measurements behind the design choices summarised in the main
 [README](../README.md): which embedder and chunk size ground retrieval, which
-local model delegates reliably as the agent orchestrator, and how the models
-compare for deterministic RAG generation. These pages hold the detail that is
-kept deliberately concise in the main README.
+local model delegates reliably as the agent orchestrator, how the models compare
+for deterministic RAG generation, whether the reviewer catches invented APIs
+without over-flagging, whether the `HISTORY` window reaches the agent, and whether
+the multi-agent triage hands off to the right specialist. These pages hold the
+detail that is kept deliberately concise in the main README.
 
 ## Method
 
@@ -17,16 +19,20 @@ Two kinds of measurement:
 
 - retrieval (grounding) is deterministic: the same embeddings give the same
   ranks, so [grounding.md](grounding.md) is reproduced exactly by a regression test
-- generation (deterministic engine) and orchestrator delegation depend on LLM
-  sampling: [deterministic.md](deterministic.md) and [orchestrator.md](orchestrator.md)
-  are measurement tests that record rates and assert the committed conclusion, not
-  byte-identical output
+- generation, delegation, review, conversation reuse and handoff routing depend on
+  LLM sampling: [deterministic.md](deterministic.md), [orchestrator.md](orchestrator.md),
+  [reviewer.md](reviewer.md), [conversation.md](conversation.md) and
+  [multi_agent.md](multi_agent.md) are measurement tests that record rates and assert
+  the committed conclusion, not byte-identical output
 
 ## The benchmarks
 
 - [grounding.md](grounding.md): embedder, chunk size and overlap for retrieval; winner `nomic-embed-text` + `MAX_WORDS=500` + `OVERLAP=0`
 - [orchestrator.md](orchestrator.md): which model delegates reliably to `write_code` via `/v1`; winner `llama3.2:3b` + the malformed-output guard
 - [deterministic.md](deterministic.md): RAG generation quality across `qwen2.5`, `coding`, `llama3.2:3b`, `coding-llama`
+- [reviewer.md](reviewer.md): reviewer catch rate vs false positives; capability-bound (`llama3.2:3b` flags everything, `qwen2.5` discriminates), so the reviewer is opt-in
+- [conversation.md](conversation.md): whether the `HISTORY` window reaches the agent; `HISTORY=1` reuses the prior snippet 0/5, `HISTORY=2` 5/5
+- [multi_agent.md](multi_agent.md): handoff routing to the right specialist; `llama3.2:3b` 60% vs `qwen2.5` 90%
 
 ## Environment
 
@@ -43,11 +49,12 @@ from the default suite (like `integration`). Both harness and tests skip when
 Ollama is unreachable or a required model is missing, and write the per-run
 output to `benchmark/runs/`.
 
-Prerequisite: the benchmarks need the dask corpus indexed, and neither the
-documents nor the index are versioned. On a fresh clone, obtain the documents
-(see [../data/documents/README.md](../data/documents/README.md)) and index them
-once; grounding reindexes the folder itself, while deterministic and orchestrator
-query the already-indexed `dask` topic:
+Prerequisite: the retrieval-backed benchmarks need the dask corpus indexed, and
+neither the documents nor the index are versioned. On a fresh clone, obtain the
+documents (see [../data/documents/README.md](../data/documents/README.md)) and
+index them once; grounding reindexes the folder itself, while deterministic,
+orchestrator and conversation query the already-indexed `dask` topic. `reviewer`
+and `multi_agent` need no corpus (inline samples, routing only):
 
 ```sh
 DOCS_FOLDER=data/documents/dask COLLECTION=dask RESET=true \
@@ -70,6 +77,9 @@ Required models per benchmark:
 - grounding: `nomic-embed-text`
 - deterministic: `nomic-embed-text` and each of `qwen2.5`, `coding`, `llama3.2:3b`, `coding-llama` (a model absent from Ollama is skipped)
 - orchestrator: `nomic-embed-text`, `qwen2.5`, `llama3.2:3b`
+- reviewer: the chosen `REVIEWER_MODEL` (`llama3.2:3b` by default, `qwen2.5` for the second row); no corpus needed, the code samples are inline
+- conversation: `nomic-embed-text`, `llama3.2:3b`; queries the already-indexed `dask` topic (`agent-as-tool`)
+- multi_agent: `llama3.2:3b`, `qwen2.5`; needs the opt-in SDK (`uv sync --group multi-agent`), no corpus
 
 `coding` and `coding-llama` are custom models; see the model recipes in
 [deterministic.md](deterministic.md). Some rows in the pages come from a wider
@@ -80,7 +90,7 @@ each page marks which rows are test-backed.
 ## Layout
 
 - `scripts/benchmark/helpers.py`: shared metrics, retrieval and Ollama probing (typed module)
-- `scripts/benchmark/{deterministic,orchestrator,grounding}.py`: runnable harness, one per benchmark
+- `scripts/benchmark/{grounding,orchestrator,deterministic,reviewer,conversation,multi_agent}.py`: runnable harness, one per benchmark
 - `tests/scripts/benchmark/`: pytest that drive the harness and assert the conclusions
 - `benchmark/*.md`: this page and one write-up per benchmark
 - `benchmark/runs/`: per-run output written by the last run
